@@ -1,0 +1,133 @@
+/*
+ * Buttons: the board's one button system (direction "C refinada"), drawn from
+ * tokens.css. Imported after styles.css and before the per-surface files in
+ * styles/ (see main.jsx).
+ *
+ *   <button className="btn btn-primary btn-md">Guardar</button>
+ *
+ *   base      .btn            secondary: tonal neutral fill, no border
+ *             .btn-secondary  the same, by name (see below)
+ *   sizes     .btn-xs 24h · .btn-sm 28h (default) · .btn-md 34h
+ *   shapes    .btn-icon (square, quiet until hovered) · .btn-close (28x28)
+ *             .btn-block (full width)
+ *   variants  .btn-primary  solid deep cyan (the one main action per view)
+ *             .btn-amber    solid amber (the decision that is yours)
+ *             .btn-warn     tonal amber · .btn-warn-outline  amber ring only
+ *             .btn-danger   tonal red  · .btn-danger-solid   solid red
+ *             .btn-live     tonal cyan · .btn-ghost          transparent
+ *
+ * Local variables (--btn-h --btn-bg --btn-bg-hover --btn-fg --btn-ring) are
+ * what a variant changes; a surface may also set them on its own wrapper.
+ *
+ * Every rule below is wrapped in `:where()` (specificity 0) on purpose: any
+ * rule of a surface adjusts a button without a specificity fight.
+ *
+ * Order matters between zero-specificity rules: sizes, then shapes, then
+ * variants, then the compound rules, so `.btn-icon` never wipes the colour of
+ * `.btn-danger` / `.btn-warn`.
+ */
+
+:where(.btn) {
+  --btn-h: var(--h-sm);
+  --btn-bg: var(--tint-neutral);
+  --btn-bg-hover: var(--tint-neutral-hover);
+  --btn-fg: var(--text);
+  --btn-ring: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: var(--btn-h, var(--h-sm));
+  padding: 0 10px;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  border: none;
+  box-shadow: 0 0 0 1px var(--btn-ring);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  text-decoration: none;
+}
+:where(.btn:hover:not(:disabled)) { background: var(--btn-bg-hover); }
+:where(.btn:active:not(:disabled)) { box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--btn-ring); }
+:where(.btn:disabled) { opacity: 0.42; cursor: not-allowed; }
+:where(.btn:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* `btn-secondary` names the base look (tonal neutral) where a ternary picks
+   between a tone and "none": it restates the base variables, nothing else. */
+:where(.btn-secondary) {
+  --btn-bg: var(--tint-neutral);
+  --btn-bg-hover: var(--tint-neutral-hover);
+  --btn-fg: var(--text);
+  --btn-ring: transparent;
+}
+
+/* sizes */
+:where(.btn-xs) { --btn-h: var(--h-xs); padding: 0 8px; font-size: var(--fs-xs); }
+:where(.btn-sm) { --btn-h: var(--h-sm); }
+:where(.btn-md) { --btn-h: var(--h-md); padding: 0 14px; font-size: var(--fs-ui); }
+
+/* shapes */
+:where(.btn-icon) {
+  --btn-bg: transparent;
+  --btn-fg: var(--text-2);
+  width: var(--btn-h);
+  padding: 0;
+  line-height: 1;
+}
+:where(.btn-icon:hover:not(:disabled)) { color: var(--text); }
+/* the window/panel close cross: 28x28 whatever the size class */
+:where(.btn-close) {
+  --btn-h: var(--h-sm);
+  --btn-bg: transparent;
+  --btn-fg: var(--muted);
+  width: var(--h-sm);
+  padding: 0;
+  font-size: var(--fs-title-lg);
+}
+:where(.btn-close:hover:not(:disabled)) { color: var(--text); }
+:where(.btn-block) { display: flex; width: 100%; }
+
+/* variants (the base already is the secondary look); after the shapes so a
+   tone beats the quiet icon colour */
+:where(.btn-primary) {
+  --btn-bg: var(--btn-primary-bg);
+  --btn-bg-hover: var(--btn-primary-bg-hover);
+  --btn-fg: #fff;
+  font-weight: 600;
+}
+:where(.btn-amber) {
+  --btn-bg: var(--amber);
+  --btn-bg-hover: var(--amber-soft-fg);
+  --btn-fg: var(--on-amber);
+  font-weight: 600;
+}
+:where(.btn-warn) { --btn-bg: var(--tint-warn); --btn-bg-hover: var(--warn-ring); --btn-fg: var(--amber); }
+:where(.btn-warn-outline) {
+  --btn-bg: transparent;
+  --btn-bg-hover: var(--tint-warn);
+  --btn-fg: var(--amber);
+  --btn-ring: var(--ring-warn);
+}
+:where(.btn-danger) { --btn-bg: var(--tint-danger); --btn-bg-hover: var(--ring-danger); --btn-fg: var(--red); }
+:where(.btn-danger-solid) {
+  --btn-bg: var(--danger-solid);
+  --btn-bg-hover: var(--red);
+  --btn-fg: #fff;
+  font-weight: 600;
+}
+:where(.btn-live) { --btn-bg: var(--tint-live); --btn-bg-hover: var(--tint-live); --btn-fg: var(--info-fg); }
+:where(.btn-ghost) { --btn-bg: transparent; --btn-fg: var(--muted); }
+:where(.btn-ghost:hover:not(:disabled)) { background: var(--tint-neutral); color: var(--text); }
+
+/* compounds: an icon-only button keeps its tone and stays transparent until
+   hovered, then takes the tone's hover fill */
+:where(.btn-icon.btn-warn, .btn-icon.btn-warn-outline) { --btn-bg: transparent; --btn-fg: var(--amber); }
+:where(.btn-icon.btn-danger) { --btn-bg: transparent; --btn-fg: var(--red); }
+:where(.btn-icon.btn-live) { --btn-bg: transparent; --btn-fg: var(--info-fg); }
+:where(.btn-icon.btn-warn:hover:not(:disabled), .btn-icon.btn-warn-outline:hover:not(:disabled), .btn-icon.btn-danger:hover:not(:disabled), .btn-icon.btn-live:hover:not(:disabled)) { color: var(--btn-fg); }
+:where(.btn-icon.btn-warn:focus-visible, .btn-icon.btn-warn-outline:focus-visible, .btn-icon.btn-danger:focus-visible, .btn-icon.btn-live:focus-visible) { color: var(--btn-fg); }

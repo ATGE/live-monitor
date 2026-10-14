@@ -1,0 +1,208 @@
+/* card — owner: 1-card-shell. See SCR plan §1.2.
+   The shell of a task card: header, body, foot of the closed card, the
+   lengthened card's `tc-groups` and the `tc-section` skeleton every control group
+   uses. Prefixes: `tc-` (shell) and `tc-section` (group skeleton). */
+
+.tc {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  max-width: var(--card-w);
+  padding: 11px 12px 12px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: 1.45;
+  box-shadow: var(--edge-hi), var(--shadow-1);
+}
+.tc.is-expanded { padding: 12px 14px 14px; box-shadow: var(--edge-hi), var(--shadow-3); }
+.tc-compact { width: 260px; max-width: none; flex: none; }
+
+/* Left stripe: amber when it is your turn, red on error. Inset, so the card
+   keeps its size and the stripe follows the rounded corner. */
+.tc-waiting { box-shadow: var(--edge-hi), var(--shadow-1), inset 3px 0 0 var(--amber); }
+.tc-waiting.is-expanded { box-shadow: var(--edge-hi), var(--shadow-3), inset 3px 0 0 var(--amber); }
+.tc-error { box-shadow: var(--edge-hi), var(--shadow-1), inset 3px 0 0 var(--red); }
+.tc-error.is-expanded { box-shadow: var(--edge-hi), var(--shadow-3), inset 3px 0 0 var(--red); }
+/* Live: a cyan edge on top and a soft halo, only while something runs. */
+.tc-live {
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--live) 55%, transparent), var(--shadow-1),
+    0 -6px 18px -12px color-mix(in oklab, var(--live) 60%, transparent);
+}
+.tc-live.is-expanded {
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--live) 55%, transparent), var(--shadow-3),
+    0 -6px 18px -12px color-mix(in oklab, var(--live) 60%, transparent);
+}
+
+/* The card a tick of the Completadas strip jumped to. */
+.tc.is-located { animation: locate-flash 1.4s ease-out; }
+@keyframes locate-flash {
+  0%, 60% { box-shadow: 0 0 0 2px var(--accent); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+/* ---------- header ---------- */
+.tc-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.tc-spacer { flex: 1; }
+/* Neutral, not cyan: cyan is for what runs now and for focus. */
+.tc-issue {
+  flex: none; color: var(--text-2); font-size: var(--fs-ui); font-weight: 600;
+  text-decoration: none; font-variant-numeric: tabular-nums;
+}
+.tc-issue:hover { color: var(--text); text-decoration: underline; }
+.tc-ask { display: inline-flex; align-items: center; color: var(--amber); }
+.tc-head .ui-expand { flex: none; background: var(--tint-neutral); }
+.tc-head .ui-expand.is-expanded { background: var(--tint-neutral-hover); color: var(--text); }
+
+.tc-title {
+  margin: 0; font-size: var(--fs-base); font-weight: 500; line-height: 1.36;
+  letter-spacing: -0.005em; color: var(--text); overflow-wrap: anywhere;
+}
+.tc:not(.is-expanded) .tc-title {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.tc-compact:not(.is-expanded) .tc-title { -webkit-line-clamp: 2; }
+.tc-branch {
+  display: block; margin-top: -2px; font-family: var(--font-mono); font-size: var(--fs-2xs);
+  color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tc-chips { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+
+/* ---------- body ---------- */
+.tc-line {
+  margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 0 5px;
+  font-size: var(--fs-xs); color: var(--text-2); overflow-wrap: anywhere;
+}
+.tc-line > .icon, .tc-line > svg { flex: none; }
+.tc-line-muted { color: var(--muted); }
+.tc-line-warn { color: var(--amber); }
+.tc-line.pr-issue-open, .tc-line.closed-open-pr, .tc-line.closed-no-merge { color: var(--amber); }
+.tc-line-live { color: var(--info-fg); }
+.tc-line-strong { color: var(--text); font-size: var(--fs-sm); font-weight: 500; }
+.tc-lanes { color: var(--amber); overflow-wrap: anywhere; }
+.tc-nothing { color: var(--muted); }
+.tc-line a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.tc-last {
+  margin: 0; font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+/* The question a session is asking, quoted. */
+.tc-quote {
+  margin: 0; display: flex; gap: 7px; padding: 8px 9px; border-radius: var(--r-ctl);
+  background: var(--tint-warn); color: var(--text); font-size: var(--fs-sm); line-height: 1.4;
+}
+.tc-quote > .icon, .tc-quote > svg { flex: none; margin-top: 2px; color: var(--amber); }
+.tc-suspect {
+  margin: 0; padding: 8px 9px; border-radius: var(--r-ctl); background: var(--tint-warn);
+  font-size: var(--fs-xs); color: var(--text-2);
+}
+.tc-suspect q { display: block; margin: 4px 0; color: var(--text); font-style: italic; }
+
+/* What is moving: subagents with their bar, the board's plan, what serves. */
+.tc-live-block {
+  display: flex; flex-direction: column; gap: 6px; margin-top: 1px; padding: 8px 9px 9px;
+  border-radius: var(--r-ctl); background: var(--live-bg);
+}
+.tc-live-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap;
+}
+.tc-live-item { display: inline-flex; align-items: center; gap: 5px; min-width: 0; }
+.tc-live-item b { color: var(--text); font-weight: 600; }
+.tc-live-est { color: var(--info-fg); font-variant-numeric: tabular-nums; }
+.tc-live-foot { color: var(--muted); }
+.tc-live-block .chart-unitbar { display: block; width: 100%; height: 6px; }
+
+.tc-pr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+
+/* The failure, in words. Three lines closed, all of it lengthened. */
+.tc-error-block {
+  margin: 0; display: flex; gap: 7px; padding: 8px 9px; border-radius: var(--r-ctl);
+  background: var(--tint-danger); color: var(--text); font-size: var(--fs-sm); line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.tc-error-block > .icon, .tc-error-block > svg { flex: none; margin-top: 2px; color: var(--red); }
+.tc-error-block b { font-weight: 600; }
+.tc-error-block.tc-clamp > span {
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Recovery controls of an error: they stay in the body, closed and lengthened. */
+.tc-recover { align-self: flex-start; max-width: 100%; height: auto; min-height: var(--h-sm); white-space: normal; }
+.tc-change-base { display: flex; flex-direction: column; gap: 6px; }
+.tc-change-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tc-change-input {
+  flex: 1 1 120px; min-width: 0; box-sizing: border-box; height: var(--h-sm); padding: 0 8px;
+  border: 0; border-radius: var(--r-sm); background: var(--bg); color: var(--text);
+  font-family: var(--font-mono); font-size: var(--fs-sm); box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.tc-change-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- foot of the closed card ---------- */
+.tc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; }
+.tc-foot:empty { display: none; }
+
+/* ---------- lengthened: the control groups ---------- */
+.tc-groups { display: flex; flex-direction: column; gap: 8px; margin-top: 1px; }
+/* Code and Env travel in one wrapper; off the phone it must not exist for layout. */
+.tc-pair { display: contents; }
+
+.tc-section {
+  display: flex; flex-direction: column; gap: 7px; min-width: 0;
+  padding-top: 8px; border-top: 1px solid var(--line);
+}
+.tc-section-head { display: flex; align-items: center; gap: 6px; min-height: 16px; }
+.tc-section-title {
+  margin: 0; font-size: var(--fs-2xs); font-weight: 600; line-height: 16px;
+  color: var(--muted); letter-spacing: 0.01em; white-space: nowrap;
+}
+.tc-section-count {
+  display: inline-grid; place-items: center; box-sizing: border-box; min-width: 18px; height: 16px;
+  padding: 0 5px; border-radius: var(--r-pill); background: var(--tint-neutral); color: var(--muted);
+  font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.tc-section-aside {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap;
+}
+.tc-section-note { margin: 0; font-size: var(--fs-2xs); line-height: 1.4; color: var(--muted); }
+
+/* The decision that is yours, in a block. */
+.tc-section-warn {
+  margin-top: 1px; padding: 8px 11px 10px; border-top: 0; border-radius: var(--r-md);
+  background: var(--tint-warn); box-shadow: inset 0 0 0 1px var(--warn-ring);
+}
+.tc-section-warn .tc-section-title { color: var(--amber); }
+.tc-section-warn .tc-section-count { background: var(--ring-warn); color: var(--amber); }
+/* The failure, same shape in red. */
+.tc-section-danger {
+  margin-top: 1px; padding: 8px 11px 10px; border-top: 0; border-radius: var(--r-md);
+  background: var(--tint-danger); box-shadow: inset 0 0 0 1px var(--ring-danger);
+}
+.tc-section-danger .tc-section-title { color: var(--red); }
+.tc-section-danger .tc-section-count { background: var(--ring-danger); color: var(--red); }
+
+/* ---------- phone ---------- */
+@media (max-width: 780px) {
+  .tc { max-width: none; }
+  .tc-compact { width: 260px; }
+  .tc-head .ui-expand { width: 32px; height: 32px; }
+  .tc-foot .btn, .tc-groups .btn { --btn-h: 30px; }
+  .tc, .tc-groups, .tc-section { min-width: 0; }
+  /* «Código y PR» and «Entorno» side by side (Mobile.dc.html, gap 12). It needs the
+     two sections wrapped in `<div className="tc-pair">` in TaskCard.jsx. The wrapper
+     carries the one top line; the sections inside draw none. */
+  .tc-groups > .tc-pair { display: flex; gap: 12px; align-items: flex-start; padding-top: 8px; border-top: 1px solid var(--line); }
+  .tc-groups > .tc-pair:empty { display: none; }
+  .tc-pair > .tc-section { flex: 1 1 0; padding-top: 0; border-top: 0; }
+  .tc-pair .tcc-actions .btn, .tc-pair .tce-actions > .btn { flex: 1 1 0; justify-content: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tc.is-located { animation: none; box-shadow: 0 0 0 2px var(--accent); }
+}

@@ -1,0 +1,50 @@
+/* card-danger — owner: 1-card-danger. See SCR plan §1.2. */
+
+/* Red stripe on the left (55 % red) marks the section; the section head
+   itself belongs to CardSection. */
+.tcx-danger {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-left: 10px;
+}
+.tcx-danger::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 3px;
+  border-radius: var(--r-pill);
+  background: color-mix(in oklab, var(--red) 55%, transparent);
+}
+
+.tcx-danger-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.tcx-danger-help {
+  margin: 0;
+  font-size: var(--fs-xs);
+  line-height: 16px;
+  color: var(--muted);
+}
+
+/* Shown instead of the Worktree button while the task works. */
+.tcx-danger-lock {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-2xs);
+  line-height: 15px;
+  color: var(--muted);
+}
+.tcx-danger-lock .icon,
+.tcx-danger-lock svg {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}

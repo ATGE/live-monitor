@@ -1,0 +1,60 @@
+/* publish — owner: 1-publish-dialog. See SCR plan §1.2. */
+
+/* The danger stripe on the box comes from Dialog's tone="danger"; this file
+   only lays out what PublishConfirm puts inside it. */
+.pub-dialog { width: min(520px, 100%); }
+
+.pub-head { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 12px; }
+.pub-slab {
+  flex: none; display: grid; place-items: center; width: 38px; height: 38px;
+  border-radius: var(--r-md); background: var(--tint-danger); color: var(--red); font-size: 19px;
+}
+.pub-head-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.pub-meta { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+.pub-chip {
+  flex: none; display: inline-flex; align-items: center; height: 20px; padding: 0 8px; box-sizing: border-box;
+  border-radius: var(--r-pill); background: var(--tint-danger); color: var(--red); font-weight: 600;
+}
+.pub-asker { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.pub-title { margin: 0; font-size: var(--fs-lg); font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; color: var(--text); }
+
+.pub-body { display: flex; flex-direction: column; gap: 14px; padding: 12px 20px 18px; }
+.pub-question { margin: 0; font-size: 14px; line-height: 1.55; color: var(--text-2); }
+
+.pub-dest {
+  display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 15px;
+  border-radius: var(--r-kpi); background: var(--col); box-shadow: inset 0 0 0 1px var(--card-border);
+}
+.pub-dest-label { font-size: var(--fs-xs); color: var(--muted); }
+.pub-dest-row { display: flex; align-items: center; gap: 13px; min-width: 0; }
+.pub-dest-icon {
+  flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 11px;
+  background: var(--tint-violet); color: var(--violet); font-size: 22px;
+}
+.pub-dest-title {
+  flex: 1; min-width: 0; font-size: var(--fs-xl); font-weight: 600; line-height: 1.25;
+  letter-spacing: -0.012em; color: var(--text); overflow-wrap: anywhere;
+}
+
+.pub-answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.pub-answer {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px; height: auto; margin: 0;
+  padding: 12px 14px 13px; border: 0; border-radius: var(--r-kpi); font: inherit; text-align: left; cursor: pointer;
+}
+.pub-answer:disabled { opacity: 0.6; cursor: default; }
+.pub-answer-label { display: inline-flex; align-items: center; gap: 7px; font-size: var(--fs-base); font-weight: 600; line-height: 1.3; }
+.pub-answer-desc { font-size: var(--fs-sm); font-weight: 400; line-height: 1.45; white-space: normal; }
+.pub-no { background: var(--tint-neutral); color: var(--text); }
+.pub-no:hover:not(:disabled) { background: var(--tint-neutral-hover); }
+.pub-no .pub-answer-label .icon, .pub-no .pub-answer-label svg { color: var(--muted); }
+.pub-no .pub-answer-desc { color: var(--text-2); }
+.pub-yes .pub-answer-desc { color: rgba(255, 255, 255, 0.92); }
+/* The initial focus lands on «No»: show it with the global ring's colour even
+   where the browser would not draw one for a script-made focus. */
+.pub-no:focus-visible, .pub-no:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pub-hint { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
+
+@media (max-width: 780px) {
+  .pub-answers { grid-template-columns: 1fr; }
+}

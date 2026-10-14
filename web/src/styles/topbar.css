@@ -1,0 +1,315 @@
+/* topbar — owner: 1-topbar. See SCR plan §1.2. Prefix: tb-. Tokens only. */
+
+.tb {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 52px;
+  padding: 0 12px 0 16px;
+  box-sizing: border-box;
+  background: var(--col);
+  box-shadow: 0 1px 0 var(--line);
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+
+/* ---- identity ---- */
+.tb-identity {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.tb-brand {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  white-space: nowrap;
+}
+.tb-brand-icon { width: 26px; height: 26px; flex: none; }
+
+.tb-picker {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 9px 0 10px;
+  box-sizing: border-box;
+  border-radius: var(--r-ctl);
+  background: var(--tint-neutral);
+  color: var(--text);
+  cursor: pointer;
+}
+.tb-picker:hover { background: var(--tint-neutral-hover); }
+.tb-picker > svg { color: var(--muted); }
+.tb-picker-name { font-weight: 600; white-space: nowrap; }
+/* The real <select> covers the control, invisible: it keeps the native list. */
+.tb-picker-select {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.tb-picker:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tb-repo {
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 260px;
+}
+
+/* ---- search + poll ---- */
+.tb-search-zone {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.tb-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 7px 0 11px;
+  box-sizing: border-box;
+  border-radius: 9px;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--muted);
+}
+.tb-search:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+.tb-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  outline: none;
+  font: inherit;
+  font-size: var(--fs-md);
+  color: var(--text);
+  text-overflow: ellipsis;
+}
+.tb-search-input::placeholder { color: var(--muted); }
+.tb-search-open { display: none; }
+
+.tb-poll {
+  flex: none;
+  --btn-h: 30px;
+  gap: 6px;
+  padding: 0 7px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  white-space: nowrap;
+}
+.tb-poll[aria-busy="true"] { cursor: progress; }
+.tb-poll-msg {
+  flex: none;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.tb-poll-msg:empty { display: none; }
+
+.tb-spin { display: inline-flex; animation: tb-spin 0.9s linear infinite; }
+@keyframes tb-spin { to { transform: rotate(360deg); } }
+
+/* ---- live state ---- */
+.tb-live {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+/* The two self-contained chip components render fragments or wrappers; keep them in line. */
+.tb-logins { display: contents; }
+
+.tb-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+.tb-dot-live { background: var(--live); box-shadow: var(--glow-dot); }
+
+.tb-machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tb-machine-ok .tb-dot { background: var(--green); box-shadow: 0 0 0 3px var(--tint-ok); }
+.tb-machine-warn .tb-dot { background: var(--amber); box-shadow: 0 0 0 3px var(--tint-warn); }
+.tb-machine-off .tb-dot { background: var(--faint); }
+.tb-machine-unknown .tb-dot { background: var(--faint); opacity: 0.6; }
+
+/* A chip: upgrade, login, plugin. 30h, r8, tinted by state. */
+.tb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 9px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--tint-neutral);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+button.tb-chip { cursor: pointer; }
+button.tb-chip:hover { background: var(--tint-neutral-hover); }
+.tb-chip-text { overflow: hidden; text-overflow: ellipsis; }
+.tb-chip-action { margin-right: -6px; }
+
+.tb-upgrade-busy { background: var(--tint-live); color: var(--info-fg); }
+.tb-upgrade-warn { background: var(--tint-warn); box-shadow: inset 0 0 0 1px var(--ring-warn); }
+.tb-upgrade-warn > svg { color: var(--amber); }
+.tb-upgrade-ok { background: var(--tint-ok); }
+.tb-upgrade-ok > svg { color: var(--green); }
+.tb-upgrade-error { background: var(--tint-danger); box-shadow: inset 0 0 0 1px var(--ring-danger); }
+.tb-upgrade-error > svg { color: var(--red); }
+
+.tb-login { padding-right: 3px; }
+.tb-login > svg { color: var(--amber); }
+.tb-login-expiring { background: var(--tint-warn); box-shadow: inset 0 0 0 1px var(--ring-warn); }
+.tb-login-expired { background: var(--tint-danger); box-shadow: inset 0 0 0 1px var(--ring-danger); }
+.tb-login-expired > svg { color: var(--red); }
+
+.tb-conn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding-left: 10px;
+  box-shadow: -1px 0 0 var(--line);
+  font-size: var(--fs-sm);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tb-conn.is-off { color: var(--amber); }
+
+/* ---- actions ---- */
+.tb-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.tb-metrics {
+  padding: 0 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  font-size: var(--fs-md);
+}
+
+/* ---- offline banner ---- */
+.tb-offline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 26px;
+  padding: 0 16px;
+  box-sizing: border-box;
+  background: var(--tint-warn);
+  box-shadow: 0 1px 0 var(--ring-warn);
+  color: var(--amber);
+  font-size: var(--fs-sm);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tb-spin { animation: none; }
+}
+
+/* ---- phone: icon, selector, search button, refresh, compact actions ---- */
+@media (max-width: 780px) {
+  .tb {
+    gap: 8px;
+    /* The notch of a phone held sideways must not cover the brand or the menu. */
+    padding: 0 max(8px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  }
+  /* Nothing in the bar may push the page wider than the screen: the identity
+     and the live zone give way (their text already ellipsizes) before the
+     search, refresh and menu buttons do. */
+  .tb-identity { gap: 8px; flex: 0 1 auto; }
+  .tb-picker { min-width: 0; }
+  .tb-live { flex: 0 1 auto; }
+  .tb-brand-name { display: none; }
+  .tb-repo { max-width: 120px; }
+
+  .tb-search-zone { justify-content: flex-end; gap: 0; }
+  .tb-search-open {
+    display: inline-flex;
+    --btn-h: 34px;
+    width: 34px;
+    padding: 0;
+  }
+  /* The field takes over the whole header while it is open. */
+  .tb-search { display: none; }
+  .tb-search.is-open {
+    display: flex;
+    position: absolute;
+    inset: 9px 8px;
+    height: auto;
+    max-width: none;
+    z-index: 1;
+  }
+  .tb-poll {
+    --btn-h: 34px;
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .tb-poll-text, .tb-poll-msg { display: none; }
+
+  /* Live zone: only the state dots. */
+  .tb-live { gap: 6px; }
+  .tb-machine-name, .tb-conn-text, .tb-chip-text { display: none; }
+  .tb-chip { padding: 0 8px; }
+  .tb-login { padding-right: 3px; }
+  .tb-chip-action { margin-right: 0; --btn-h: var(--h-sm); flex: none; }
+  .tb-conn { padding-left: 6px; box-shadow: none; }
+  /* «Renovar login» stays as text (it is the action); 28h is a thumb inside the 30h chip. */
+  .tb-offline { padding: 4px 12px; text-align: center; }
+
+  .tb-metrics {
+    width: 34px;
+    padding: 0;
+    justify-content: center;
+  }
+  .tb-metrics-text { display: none; }
+  .tb-actions { gap: 0; }
+}

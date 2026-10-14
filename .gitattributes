@@ -1,0 +1,26 @@
+# Same for everything the decision extractor and the docs tooling generate.
+decisions.md text eol=lf
+docs/** text eol=lf
+tools/decisions/* text eol=lf
+
+# The phase C indexes sit at the root but are written by the same tooling.
+PRD.md text eol=lf
+FSD.md text eol=lf
+adr.md text eol=lf
+
+# Skill copies are normalised to LF when copied from hfs (whose working tree
+# is CRLF on Windows); the drift test compares LF to LF.
+.claude/skills/** text eol=lf
+# The AIDLC reference skills moved out of .claude/skills/ (the board loads that
+# folder); keep them LF like before.
+.agents/reference/skills/** text eol=lf
+tools/bridge/* text eol=lf
+
+# The prompt baseline is written with LF from Node and compared byte for byte
+# across machines; pin it so `autocrlf` does not make the laptop and the runner
+# disagree about a fixture whose whole job is being identical.
+server/test/fixtures/prompt-baseline/** text eol=lf
+tools/prompt-baseline/*.mjs text eol=lf
+
+# The board own UX plugin, with its third-party license texts, is read verbatim by the CLI.
+plugins/** text eol=lf

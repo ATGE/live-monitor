@@ -1,0 +1,9 @@
+{
+  "cutoff": "2026-09-18T18:49:12.260Z",
+  "output": {
+    "index": "decisions.md",
+    "days": "docs/decisions",
+    "history": "docs/history",
+    "adrDir": "docs/adr"
+  }
+}

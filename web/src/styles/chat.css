@@ -1,0 +1,494 @@
+/* chat — owner: 1-chat-panel. See SCR plan §1.2. */
+/*
+ * The chat panel: header in two lines, the chat tabs, the thread's container
+ * and the composer. Prefix `cp-`; the hooks tests and logic pin keep their
+ * names (`chat-tab*`, `chat-add`, `run-count`, `ask-dot`, `composer-grip`,
+ * `messages`) and are restyled here with a selector at least as specific as
+ * the old one in styles.css, which loads before this file.
+ * Colours come from tokens.css only. The bubbles inside the thread are
+ * chat-bubbles.css.
+ */
+
+/* ---- Panel ------------------------------------------------------------ */
+.subpanel.subpanel-chat {
+  background: var(--col);
+  box-shadow: inset 1px 0 0 var(--line);
+}
+.cp-spacer { flex: 1; min-width: 0; }
+.cp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Header: two lines ------------------------------------------------- */
+/* `.subpanel > header` (0,1,1) centres a row; this one is a column. */
+.subpanel-chat > .cp-head {
+  flex: none;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 12px 12px 10px 16px;
+  background: none;
+}
+.cp-head-top,
+.cp-head-meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.cp-head-top { gap: 9px; }
+.cp-head-meta { flex-wrap: wrap; gap: 6px 7px; }
+.cp-title {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.cp-title svg { flex: none; color: var(--muted); }
+.cp-branch {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.cp-meta-text {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cp-meta-text svg { flex: none; }
+
+.cp-history-btn { position: relative; flex: none; }
+.cp-badge {
+  position: absolute;
+  top: 1px;
+  right: 0;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  background: var(--surface-4);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  line-height: 15px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 2px var(--col);
+}
+.cp-create { flex: none; }
+.cp-head-top .btn-close { flex: none; }
+
+.cp-model-btn {
+  flex: none;
+  gap: 6px;
+  max-width: 100%;
+  padding: 0 8px 0 10px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.cp-model-btn > svg:first-child { color: var(--violet); }
+.cp-model-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cp-model-btn[aria-expanded="true"] { background: var(--tint-neutral-hover); color: var(--text); }
+
+/* ---- Popovers (rendered on <body>: no `.subpanel-chat` ancestor) -------- */
+.cp-pop {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 260px;
+  padding: 10px 12px;
+  font-size: var(--fs-sm);
+}
+.cp-pop-title {
+  margin: 0;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+.cp-history { width: 360px; gap: 0; }
+.cp-history .cp-pop-title { padding-bottom: 6px; }
+.cp-history-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas: "name actions" "meta actions";
+  gap: 1px 10px;
+  align-items: center;
+  padding: 7px 0;
+  border-top: 1px solid var(--line);
+}
+.cp-history-name {
+  grid-area: name;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-ui);
+  color: var(--text);
+}
+.cp-history-meta {
+  grid-area: meta;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.cp-history-actions { grid-area: actions; display: flex; gap: 6px; }
+
+.cp-model-pop { width: 300px; }
+.cp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.cp-field-note { color: var(--amber); }
+.cp-field-phase { flex-direction: row; align-items: center; justify-content: space-between; gap: 10px; }
+.cp-select {
+  width: 100%;
+  min-width: 0;
+  height: var(--h-sm);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: var(--surface-3);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+}
+.cp-select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- Chat tabs ---------------------------------------------------------- */
+.cp-tabs {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px 10px 14px;
+  box-shadow: inset 0 -1px 0 var(--line);
+}
+.chat-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  height: var(--h-sm);
+  max-width: 210px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+}
+.chat-tab:hover { background: var(--tint-neutral); color: var(--text); }
+/* The selected chat has a background of its own and a mark under it. The bold
+   is paid for in advance by the name's hidden ghost below, and lives on the
+   name only: on this box it would reach `.run-count` (no ghost) and the tab
+   would change width when selected. */
+.chat-tab.is-active {
+  background: var(--tint-neutral-hover);
+  color: var(--text);
+  box-shadow: inset 0 -2px 0 var(--text-2);
+}
+.chat-tab .chat-tab-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  height: 100%;
+  padding: 0 10px;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.chat-tab-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chat-tab.is-active .chat-tab-name { font-weight: 600; }
+.chat-tab-name::after {
+  content: attr(data-label);
+  font-weight: 700;
+  white-space: nowrap;
+  display: block;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+.chat-tab .ask-dot { display: inline-grid; flex: none; margin: 0; color: var(--amber); }
+.chat-tab .run-count { display: inline-flex; align-items: center; gap: 3px; }
+/* Inline rename (double-click on the name): sized like the tab it replaces. */
+.chat-tab-rename {
+  width: 14ch;
+  min-width: 6ch;
+  max-width: 180px;
+  margin: 0 6px;
+  padding: 1px 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  user-select: text;
+  -webkit-user-select: text;
+}
+.chat-tab-rename:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* The tab's own ✕: shown on hover, focus and on the active tab, so it never
+   reads as the panel's ✕ up in the header. */
+.chat-tab .chat-tab-close {
+  --btn-h: 22px;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin-right: 3px;
+  padding: 0;
+  font-size: var(--fs-sm);
+  opacity: 0;
+}
+.chat-tab:hover .chat-tab-close,
+.chat-tab:focus-within .chat-tab-close,
+.chat-tab.is-active .chat-tab-close { opacity: 1; }
+.chat-tab .chat-tab-close:hover { color: var(--red); }
+.chat-tab .chat-tab-close.is-busy { color: var(--faint); cursor: not-allowed; }
+/* The two «new» buttons are tabs only by name: square, quiet. */
+.chat-tab.chat-add {
+  justify-content: center;
+  width: var(--h-sm);
+  padding: 0;
+  color: var(--muted);
+  cursor: pointer;
+}
+.chat-tab.chat-add:hover { color: var(--text); }
+
+.cp-plan-open,
+.cp-plan-mode {
+  flex: none;
+  padding: 0 9px;
+  border-radius: 7px;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+.cp-plan-open { font-variant-numeric: tabular-nums; }
+.cp-plan-mode svg { color: var(--muted); }
+.cp-plan-state { color: var(--muted); }
+.cp-plan-mode.is-on { background: var(--tint-warn); color: var(--amber); }
+.cp-plan-mode.is-on svg,
+.cp-plan-mode.is-on .cp-plan-state { color: var(--amber); }
+
+/* ---- Notices and empty states -------------------------------------------- */
+.cp-parallel {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 8px 12px 0;
+  padding: 7px 10px;
+  border-radius: var(--r-ctl);
+  background: var(--tint-warn);
+  color: var(--amber);
+  font-size: var(--fs-sm);
+}
+.cp-parallel svg { flex: none; margin-top: 2px; }
+.cp-no-worktree {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  margin: 12px 12px 0;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--edge-hi), inset 0 0 0 1px var(--card-border);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.cp-no-worktree > svg { flex: none; color: var(--muted); }
+.cp-no-worktree > span { flex: 1 1 200px; min-width: 0; }
+.cp-empty {
+  margin: auto 0;
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.cp-empty svg { vertical-align: -2px; }
+
+/* ---- The thread's container ---------------------------------------------- */
+/* No top padding on purpose, as `.messages` in styles.css: a sticky day band
+   cannot travel into it. The first message brings its own air instead, and
+   the band takes the side padding it eats from here. A mask on the thread
+   would wash out that sticky band, so the fade under the header is the band's
+   own background. */
+.cp-messages {
+  gap: 12px;
+  padding: 0 18px 12px;
+}
+.cp-messages > :first-child:not(.day-divider) { margin-top: 14px; }
+.cp-messages > .day-divider {
+  margin: 0 -18px;
+  padding: 10px 18px 6px;
+  background: linear-gradient(var(--col) 75%, transparent);
+}
+
+/* ---- Attachments, dictation, composer -------------------------------------- */
+.cp-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+}
+.cp-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 2px 0 8px;
+  border-radius: var(--r-sm);
+  background: var(--tint-neutral);
+  color: var(--text-2);
+  font-size: var(--fs-sm);
+}
+.cp-file em { color: var(--muted); font-style: normal; font-variant-numeric: tabular-nums; }
+.cp-file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cp-file .btn-close { --btn-h: 22px; width: 22px; height: 22px; }
+
+.cp-composer { flex: none; padding: 0 12px 12px; }
+.cp-box {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-kpi);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.cp-box:focus-within { box-shadow: inset 0 0 0 1px var(--accent); }
+/* The grip hangs from the box's top edge; its look is styles.css's. */
+.cp-box .composer-grip { top: -7px; }
+.cp-box .composer-grip::before { background: var(--line-strong); }
+.cp-box .composer-grip:hover::before,
+.cp-box .composer-grip.is-pinned::before { background: var(--accent); }
+.cp-box .cp-input {
+  /* The floor, in lines: the hook turns it into pixels (useComposerHeight.js).
+     `height` is the same two lines, already right on the first frame. */
+  --composer-lines: 2;
+  display: block;
+  width: 100%;
+  height: 56px;
+  margin: 0;
+  padding: 11px 13px 2px;
+  overflow-y: auto;
+  border: 0;
+  border-radius: var(--r-kpi) var(--r-kpi) 0 0;
+  outline: none;
+  resize: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+}
+.cp-box .cp-input:disabled { opacity: 0.55; cursor: not-allowed; }
+.cp-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px 6px;
+}
+.cp-tools .cp-tool { flex: none; color: var(--muted); }
+.cp-tools .cp-tool:hover:not(:disabled) { color: var(--text); }
+.cp-hint {
+  flex: 1;
+  min-width: 0;
+  margin-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+}
+.cp-send {
+  --btn-h: 30px;
+  flex: none;
+  margin-left: 6px;
+  padding: 0 12px;
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+/* Dictation: besides the red, the button turns into a stop square (MicButton)
+   and keeps `aria-pressed`; the pulse is the only motion and it stops when
+   the visitor asked for less. The dialogs dictate too, so no `.cp-` here. */
+.mic.listening { background: var(--tint-danger); color: var(--red); }
+.dictation-error { margin: 6px 14px 0; font-size: var(--fs-sm); color: var(--amber); }
+
+/* ---- Touch and phone ------------------------------------------------------- */
+@media (hover: none) {
+  .chat-tab .chat-tab-close { opacity: 1; }
+}
+@media (max-width: 780px) {
+  .subpanel-chat > .cp-head { padding: 10px 8px 8px 14px; }
+  .cp-head .btn-icon,
+  .cp-head .btn-close { --btn-h: var(--h-touch); width: var(--h-touch); height: var(--h-touch); }
+  .cp-head .cp-create,
+  .cp-head .cp-model-btn { --btn-h: var(--h-touch); }
+  .cp-tabs { padding: 0 8px 8px 12px; }
+  .chat-tab { height: var(--h-touch); }
+  .chat-tab.chat-add { width: var(--h-touch); }
+  .chat-tab .chat-tab-close { --btn-h: 28px; width: 28px; height: 28px; }
+  .chat-tab-rename { font-size: var(--fs-lg); }
+  .cp-plan-open,
+  .cp-plan-mode { height: var(--h-touch); }
+  .cp-messages { padding: 0 14px 10px; }
+  .cp-messages > .day-divider { margin: 0 -14px; padding: 10px 14px 6px; }
+  .cp-pop { min-width: 0; width: calc(100vw - 32px); }
+  /* 16px stops iOS from zooming in; two lines make the floor of 65px. */
+  .cp-box .cp-input { --composer-lines: 2; height: 65px; font-size: var(--fs-lg); }
+  .cp-box .composer-grip { top: -10px; }
+  /* Chat.dc.html is a desktop frame (28h buttons, 30h send) and Mobile.dc.html has no
+     chat: the head keeps 32 (the artboard's 28 plus the 4 the expand button gets) and
+     the composer, which is typed on with a thumb, gets the 44 of the rest of the phone. */
+  .cp-tools .cp-tool { --btn-h: 44px; }
+  .cp-send { --btn-h: 44px; margin-left: auto; }
+  .cp-composer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  /* A line of keys that hints at a keyboard has no place on a phone. */
+  .cp-hint { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mic.listening { animation: none; }
+}

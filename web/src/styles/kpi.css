@@ -1,0 +1,305 @@
+/* kpi — owner: 1-kpi-strip. See SCR plan §1.2. Prefix: kpi-. Colours only through tokens.css. */
+
+.kpi {
+  position: relative;
+  z-index: 4;
+  display: flex;
+  align-items: stretch;
+  padding: 10px 12px 12px;
+  background: var(--col);
+  box-shadow: 0 1px 0 var(--line), 0 6px 18px color-mix(in srgb, var(--bg) 60%, transparent);
+  box-sizing: border-box;
+  color: var(--text);
+  font-size: var(--fs-md);
+}
+
+/* Cells: 1px divider between neighbours, drawn short so it does not touch the strip's edges. */
+.kpi-cell {
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 12px;
+  min-width: 0;
+}
+.kpi-cell + .kpi-cell::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--line);
+}
+.kpi-open { flex: 1 1 0; }
+
+.kpi-label {
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.kpi-fig {
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.kpi-fig small {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--muted);
+  letter-spacing: 0;
+}
+.kpi-line {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  white-space: nowrap;
+}
+.kpi-unit { font-size: var(--fs-sm); color: var(--text-2); }
+.kpi-aside {
+  margin-left: auto;
+  padding-left: 6px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.kpi-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.kpi-meta .kpi-meta-ok { margin-left: 6px; color: var(--green); }
+.kpi-none { font-size: var(--fs-ui); color: var(--muted); white-space: nowrap; }
+.kpi-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* Visually hidden, still read aloud: the zero of a bucket that draws nothing. */
+.kpi-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* «N esperan tu decisión» */
+.kpi-await {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: 8px;
+  padding: 6px 14px 22px 10px;
+  border: 0;
+  border-radius: var(--r-kpi);
+  background: var(--tint-warn);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--amber) 28%, transparent);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kpi-await:hover { background: color-mix(in srgb, var(--amber) 20%, transparent); }
+.kpi-await-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--amber) 18%, transparent);
+  color: var(--amber);
+}
+.kpi-await-main { display: flex; align-items: baseline; gap: 8px; white-space: nowrap; font-weight: 500; }
+.kpi-await-n {
+  font-size: var(--fs-2xl);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-await-go { color: var(--amber); }
+.kpi-await-sub {
+  position: absolute;
+  left: 60px;
+  bottom: 7px;
+  font-size: var(--fs-xs);
+  color: var(--amber-soft-fg);
+  white-space: nowrap;
+}
+/* Nothing is waiting: a quiet cell, no amber. */
+.kpi-calm {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: var(--fs-ui);
+  white-space: nowrap;
+}
+.kpi-calm svg { color: var(--green); }
+
+/* Tareas activas */
+.kpi-slots { flex-direction: row; align-items: center; gap: 12px; }
+.kpi-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.kpi-stepper { display: inline-flex; align-items: center; margin-left: 2px; }
+/* WCAG 2.2 target size: 24x24 at least, 32 for a coarse pointer. */
+.kpi-step { --btn-h: 24px; padding: 0; color: var(--muted); }
+@media (pointer: coarse) { .kpi-step { --btn-h: 32px; } }
+.kpi-limit-n {
+  min-width: 14px;
+  text-align: center;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Agentes en marcha */
+.kpi-agents .chart-unitbar { width: 100%; }
+
+/* Abiertas por estado */
+.kpi-segs {
+  display: grid;
+  column-gap: 2px;
+  row-gap: 5px;
+  margin-top: 1px;
+}
+.kpi-seg { height: 10px; border-radius: 2px; }
+.kpi-seg-running { background: var(--live); }
+.kpi-seg-waiting { background: var(--amber); }
+.kpi-seg-queued { background: var(--idle-seg); }
+.kpi-seg-review { background: var(--green); }
+.kpi-seg-error { background: var(--red); }
+.kpi-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding-right: 6px;
+  white-space: nowrap;
+}
+.kpi-legend:last-child { padding-right: 0; }
+.kpi-legend-n {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--fs-xs);
+  line-height: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.kpi-legend-label { font-size: var(--fs-2xs); line-height: 15px; color: var(--muted); }
+.kpi-legend-dot { display: inline-grid; place-items: center; width: 13px; height: 13px; }
+.kpi-ico-amber { color: var(--amber); }
+.kpi-ico-muted { color: var(--muted); }
+.kpi-ico-green { color: var(--green); }
+.kpi-ico-red { color: var(--red); }
+
+/* Cuota */
+.kpi-quota { align-items: flex-start; }
+.kpi-qbtn,
+.kpi-sbtn,
+.kpi-mbtn {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.kpi-qbtn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 3px 8px 3px 3px;
+  border-radius: var(--r-md);
+}
+.kpi-sbtn {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-left: 57px;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: var(--r-ctl);
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+  line-height: 16px;
+  white-space: nowrap;
+}
+.kpi-qbtn:hover, .kpi-qbtn.is-open,
+.kpi-sbtn:hover, .kpi-sbtn.is-open,
+.kpi-mbtn:hover, .kpi-mbtn.is-open { background: var(--tint-neutral-hover); }
+.kpi-sline { display: inline-flex; align-items: center; gap: 5px; }
+.kpi-tone-ok svg { color: var(--green); }
+.kpi-tone-warn svg { color: var(--amber); }
+.kpi-tone-error svg { color: var(--red); }
+.kpi-tone-busy svg { color: var(--live); }
+.kpi-tone-idle svg { color: var(--muted); }
+.kpi-hold { color: var(--amber); font-size: var(--fs-xs); font-weight: 600; white-space: nowrap; }
+.kpi-hold-note { display: flex; flex-direction: column; margin-left: 57px; padding: 2px 8px; }
+.kpi-sub { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+
+/* Mediana por tarea */
+.kpi-mbtn {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px 6px;
+  margin: -2px -6px;
+  border-radius: var(--r-md);
+}
+.kpi-mbtn .chart-spark { margin: 1px 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .kpi-await, .kpi-qbtn, .kpi-sbtn, .kpi-mbtn { transition: none; }
+}
+
+/* Phone: the strip scrolls sideways, one card per figure. */
+@media (max-width: 780px) {
+  .kpi {
+    gap: 8px;
+    padding: 8px 0 10px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x proximity;
+    scroll-padding-left: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .kpi > * { scroll-snap-align: start; }
+  .kpi::after { content: ''; flex: none; width: 4px; }
+  .kpi-cell {
+    padding: 8px 12px;
+    border-radius: var(--r-kpi);
+    background: var(--card);
+    box-sizing: border-box;
+  }
+  .kpi-cell + .kpi-cell::before { display: none; }
+  .kpi-await { width: 252px; min-height: 114px; margin-right: 0; padding: 8px 12px 22px 10px; box-sizing: border-box; }
+  .kpi-await-go { margin-left: auto; }
+  .kpi-await-sub { bottom: 10px; color: var(--amber); }
+  .kpi-slots { width: 214px; gap: 14px; }
+  .kpi-step { --btn-h: 32px; }
+  .kpi-open { flex: none; min-width: 240px; }
+  .kpi-calm { flex: none; }
+}

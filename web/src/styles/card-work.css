@@ -1,0 +1,24 @@
+/* card-work — owner: 1-card-work. Prefix tcw-. */
+.tcw-aside { margin-left: auto; display: inline-flex; align-items: center; gap: 2px; margin-right: -6px; }
+.tcw-aside-btn { padding: 0 6px; }
+.tcw-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.tcw-row:empty { display: none; }
+.tcw-btn { flex: 1 1 0; min-width: 0; gap: 5px; font-size: var(--fs-sm); white-space: nowrap; }
+.tcw-count { color: var(--muted); font-variant-numeric: tabular-nums; }
+.tcw-ask { display: inline-flex; color: var(--amber); font-size: var(--fs-xs); }
+.tcw-verdict { margin-left: 1px; }
+.tcw-qa-pass .tcw-verdict { color: var(--green); }
+.tcw-qa-fail .tcw-verdict { color: var(--red); }
+.tcw-qa-unverified .tcw-verdict { color: var(--amber); }
+.tcw-qa-note {
+  display: flex; align-items: center; gap: 5px; margin: 0;
+  font-size: var(--fs-xs); color: var(--amber);
+}
+
+@media (max-width: 780px) {
+  .tcw-btn { height: 30px; }
+  /* Log and Tiempos get their own full-width row under the title. */
+  .tc-section-head:has(.tcw-aside) { flex-wrap: wrap; }
+  .tcw-aside { order: 3; flex: 0 0 100%; margin: 0; gap: 6px; }
+  .tcw-aside-btn { flex: 1 1 0; height: 30px; background: var(--tint-neutral); color: var(--text); }
+}

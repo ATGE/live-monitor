@@ -1,0 +1,26 @@
+/* The PR picker, the PR link with its checks light and the change-request
+   mini-cards now live in `styles/card-code.css` (`tcc-` classes). What stays
+   here is the two hint lines and the chip that TaskCard's shell still paints.
+   Specificity (`.hint-line.pr-issue-open`, `.chip.chip-reopened`) is
+   deliberate: styles.css loads after this file and sets its own colour on
+   `.hint-line`/`.chip`, which would otherwise win on load order alone. */
+
+/* #787's tell: a merged PR whose issue GitHub never closed. Amber, not red —
+   nothing is broken, it's just not quite the «Completada» it looks like. */
+.hint-line.pr-issue-open { color: var(--amber); }
+
+/* The other two endings a card in «Completadas» can have, both born of the
+   issue being closed on GitHub: a pull request left open that nobody is
+   watching, and work that never merged (#937). Same amber as the line
+   above and for the same reason — nothing is broken, it just isn't the
+   merge the «Completada» label alone suggests. --red belongs to errors and
+   closed PRs, --accent to a merge that did happen, and --muted is what
+   `.hint-line` already gives: it would leave these three endings looking
+   alike. Two classes deep, like its neighbours, for the reason above. */
+.hint-line.closed-open-pr,
+.hint-line.closed-no-merge { color: var(--amber); }
+/* The PR number is a link; keep it in the line's tone instead of the
+   browser's default blue, which would read as a state this board uses. */
+.hint-line.closed-open-pr a { color: inherit; text-decoration: underline; }
+
+.chip.chip-reopened { color: var(--accent); border-color: var(--info-border); background: var(--info-bg); }

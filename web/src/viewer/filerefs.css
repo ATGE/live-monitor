@@ -1,0 +1,82 @@
+/* Clickable file references in the chat and the activity tree. Uses the
+   variables from styles.css :root. */
+
+.file-ref {
+  background: none; border: none; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer;
+}
+.file-ref:focus { outline: none; }
+.file-ref:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; border-radius: var(--r-xs); }
+
+/* Inline code that names a file: same look as any code span, plus a dotted
+   underline that turns accent on hover and focus. */
+.file-ref > code {
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.file-ref:hover > code,
+.file-ref:focus-visible > code {
+  color: var(--accent);
+  border-color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+
+/* A markdown link to a file: looks like the chat's other links. #2c4f86 and
+   #16233a are copied from `.md a` in styles.css, which has no variable for them. */
+.file-ref.file-ref-link {
+  color: var(--accent);
+  border-bottom: 1px solid var(--info-border);
+}
+.file-ref.file-ref-link:hover,
+.file-ref.file-ref-link:focus-visible { background: var(--info-bg); }
+
+/* A Read/Write/Edit row whose path opens in the viewer. A button cannot hold
+   another, so the row is a div (still `.activity-line`, so same flex layout):
+   an empty button covering it toggles the detail, and the path is a real
+   button above it. Everything else lets clicks fall through to the toggle. */
+.file-row { position: relative; }
+.file-row > .row-toggle {
+  position: absolute; inset: 0;
+  background: none; border: 0; padding: 0; margin: 0;
+  cursor: pointer;
+}
+.file-row > .row-toggle:disabled { cursor: default; }
+.file-row > .row-toggle:focus { outline: none; }
+.file-row > .row-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.file-row > :not(.row-toggle) { position: relative; pointer-events: none; }
+/* `.activity-item >` outranks `.activity-line:not(:disabled):hover` whatever the bundle order. */
+.activity-item > .file-row.no-detail:hover { background: none; }
+
+.file-row .file-ref {
+  pointer-events: auto;
+  max-width: 100%; vertical-align: bottom;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  text-decoration: underline dotted var(--muted);
+  text-underline-offset: 3px;
+}
+.file-row .file-ref:hover,
+.file-row .file-ref:focus-visible {
+  color: var(--accent);
+  text-decoration-color: var(--accent);
+}
+/* `.summary` clips its overflow, so the ring goes inside the button. */
+.file-row .file-ref:focus-visible { outline-offset: -1px; border-radius: 0; }
+
+/* One chip per machine holding the file, right after the path. The wrapper is
+   always in the DOM (the observer watches it) and collapses when empty. */
+.file-ref-machines { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-left: 6px; max-width: 100%; vertical-align: baseline; }
+/* Not `display: none`: an unrendered box never intersects, so the observer would never fire. */
+.file-ref-machines:empty { margin: 0; }
+.file-ref-machine {
+  position: relative; font: inherit; font-size: 10.5px; line-height: 1.4;
+  cursor: pointer; white-space: nowrap;
+}
+.file-ref-machine:hover,
+.file-ref-machine:focus-visible { border-color: var(--accent); }
+.file-row > .file-ref-machines { flex: 0 1 auto; min-width: 0; }
+.file-row .file-ref-machine { pointer-events: auto; }
+/* On touch, a 44px hit area without growing the chat line. */
+@media (pointer: coarse) {
+  .file-ref-machine::before { content: ''; position: absolute; inset: -12px; }
+}

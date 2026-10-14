@@ -1,0 +1,103 @@
+/* card-code — owner: 1-card-code. See SCR plan §1.2.
+   «Código y PR» group of the stretched card and the change-request mini-cards.
+   Every class is new (`tcc-`), so the old `.cr-*`, `.pr-*` and `.actions` rules
+   of styles.css no longer reach this markup; the stack and the rows zero the
+   `margin-top` the old `.cr-stack`/`.stack` rules carried so nothing adds to
+   the section's own gap. */
+
+/* ---- PR row: link + checks, optional picker ---- */
+.tcc-pr-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  min-width: 0; min-height: 22px; margin: 0;
+}
+.tcc-pr { display: inline-flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; flex: 1 1 auto; }
+.tcc-pr-sm { gap: 8px; flex: 0 1 auto; }
+.tcc-pr-link {
+  display: inline-flex; align-items: center; gap: 5px; min-width: 0;
+  color: var(--text); text-decoration: none;
+  font-size: var(--fs-sm); font-weight: 500; white-space: nowrap;
+}
+.tcc-pr-link:hover { text-decoration: underline; }
+.tcc-pr-link > svg { flex: none; color: var(--muted); }
+.tcc-pr-state { color: var(--muted); font-weight: 400; }
+/* The state reads in words and in tone: draft is quiet, open is green, merged
+   takes the accent, closed is red. */
+.tcc-pr-open .tcc-pr-state { color: var(--green); }
+.tcc-pr-merged .tcc-pr-state { color: var(--live); }
+.tcc-pr-closed .tcc-pr-state { color: var(--red); }
+
+.tcc-checks {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: var(--fs-xs); white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.tcc-checks-text { color: var(--muted); }
+.tcc-checks-pending .tcc-checks-text { color: var(--info-fg); }
+.tcc-checks-fail .tcc-checks-text { color: var(--red); }
+.tcc-checks-ok .tcc-checks-text { color: var(--green); }
+
+.tcc-pr-pick {
+  flex: none; max-width: 45%; min-width: 0;
+  background: var(--card); color: var(--text);
+  border: 1px solid var(--card-border); border-radius: var(--r-xs);
+  padding: 2px 4px; font: inherit; font-size: var(--fs-sm); cursor: pointer;
+}
+.tcc-opt-draft { color: var(--muted); }
+.tcc-opt-open { color: var(--green); }
+.tcc-opt-merged { color: var(--live); }
+.tcc-opt-closed { color: var(--red); }
+
+.tcc-no-pr {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: var(--fs-sm); color: var(--muted); white-space: nowrap;
+}
+
+/* ---- Buttons ---- */
+.tcc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+.tcc-reviewer { margin-left: auto; }
+
+/* ---- Change-request mini-cards ---- */
+.tcc-cr-stack { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+.tcc-cr {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 8px 10px; border-radius: var(--r-ctl);
+  background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--line);
+}
+/* The active one is the live one: cyan ring, as everything alive on the board. */
+.tcc-cr.is-active { background: var(--tint-live); box-shadow: inset 0 0 0 1px var(--live); }
+.tcc-cr.is-idle { opacity: 0.62; }
+.tcc-cr.is-idle:hover, .tcc-cr.is-idle:focus-within { opacity: 0.85; }
+
+.tcc-cr-open {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  width: 100%; min-width: 0; margin: 0; padding: 0;
+  background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer;
+}
+.tcc-cr-open:hover .tcc-cr-author { text-decoration: underline; }
+.tcc-cr-author {
+  display: inline-flex; align-items: center; gap: 5px; max-width: 100%;
+  font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tcc-cr-status { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-xs); color: var(--muted); }
+.tcc-cr-status .spinner { width: 9px; height: 9px; border-width: 1.5px; }
+.tcc-cr-status-warn { color: var(--amber); }
+.tcc-cr-status-busy { color: var(--info-fg); }
+.tcc-cr-status-ok { color: var(--green); }
+.tcc-cr-count { font-size: var(--fs-xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.tcc-cr-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0; }
+/* State in words plus an icon (never colour alone); the button beside it says
+   what a click will do. */
+.tcc-cr-active {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--fs-xs); color: var(--muted); white-space: nowrap;
+}
+.tcc-cr.is-active .tcc-cr-active { color: var(--info-fg); }
+
+@media (max-width: 780px) {
+  .tcc-pr-row { flex-wrap: wrap; }
+  .tcc-pr-pick { max-width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tcc-cr { transition: none; }
+}

@@ -1,0 +1,47 @@
+/* card-decision — owner: 1-card-decision. See SCR plan §1.2. */
+
+/* The group's body: blocks stacked inside the amber/red section that CardSection draws. */
+.tcd-block { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tcd-stack { display: flex; flex-direction: column; gap: 6px; }
+.tcd-pair { display: flex; gap: 6px; min-width: 0; }
+.tcd-half { flex: 1 1 0; min-width: 0; }
+
+.tcd-label {
+  margin: 0; display: flex; align-items: center; gap: 5px;
+  font-size: var(--fs-2xs); line-height: 15px; color: var(--text-2);
+}
+.tcd-text {
+  margin: 0; font-size: var(--fs-sm); line-height: 1.4; font-weight: 500; color: var(--text);
+  overflow-wrap: anywhere;
+}
+.tcd-quote { display: block; margin: 4px 0 0; color: var(--text); font-style: italic; }
+
+/* The decision that is yours: full width and a touch taller than a plain button. */
+.tcd-main { height: 30px; font-size: var(--fs-ui); font-weight: 600; }
+
+.tcd-sep { height: 1px; margin: 1px 0; background: color-mix(in srgb, var(--amber) 22%, transparent); }
+
+.tcd-plan { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); line-height: 17px; }
+.tcd-plan-row { display: flex; align-items: center; gap: 8px; margin-top: -3px; }
+.tcd-lanes {
+  display: inline-flex; align-items: center; gap: 3px; padding-left: 19px;
+  font-size: var(--fs-xs); color: var(--text-2); font-variant-numeric: tabular-nums;
+}
+.tcd-fill { flex: 1; }
+
+/* «Seguir desde tests»: the quiet way out next to Reintentar. */
+.tcd-outline {
+  background: transparent; color: var(--text-2); box-shadow: inset 0 0 0 1px var(--line);
+}
+.tcd-outline:hover:not(:disabled) { background: var(--tint-neutral); color: var(--text); }
+
+/* A failed move. */
+.tcd-move-chip {
+  display: inline-flex; align-items: flex-start; gap: 5px; min-width: 0;
+  font-size: var(--fs-xs); line-height: 16px; color: var(--amber); overflow-wrap: anywhere;
+}
+.tcd-move + .tcd-block, .tcd-block + .tcd-move { margin-top: 2px; }
+
+@media (max-width: 780px) {
+  .tcd-main, .tcd-block .btn, .tcd-stack .btn, .tcd-pair .btn { height: 32px; }
+}

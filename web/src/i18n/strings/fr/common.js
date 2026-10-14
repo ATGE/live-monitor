@@ -1,0 +1,15 @@
+export default {
+  cancel: 'Annuler',
+  close: 'Fermer',
+  accept: 'OK',
+  save: 'Enregistrer',
+  delete: 'Supprimer',
+  retry: 'Réessayer',
+  loading: 'Chargement…',
+  yes: 'Oui',
+  no: 'Non',
+  none: 'Aucun',
+  back: 'Retour',
+  task: { one: '{n} tâche', other: '{n} tâches' },
+  languageNames: { es: 'Español', en: 'English', fr: 'Français', de: 'Deutsch' },
+};

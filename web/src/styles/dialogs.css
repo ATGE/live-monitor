@@ -1,0 +1,70 @@
+/* dialogs — owner: 1-dialog-base. See SCR plan §1.2. */
+/* The board's window in C's look. It loads after styles.css, so these rules
+   win by order at equal specificity. Heights, widths and the phone's
+   full-screen box (vh then dvh) stay in styles.css: nothing here sets them,
+   except that the phone box is square again below. */
+
+.modal-backdrop { background: var(--scrim); }
+.modal {
+  background: var(--card); border: 0; border-radius: var(--r-xl);
+  box-shadow: var(--shadow-modal), var(--edge-hi);
+}
+.modal-head {
+  display: flex; align-items: center; gap: 12px; justify-content: flex-start;
+  padding: 14px 14px 2px 18px; border-bottom: 0; background: none;
+  border-radius: var(--r-xl) var(--r-xl) 0 0;
+}
+.dlg-icon {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: var(--r-md); background: var(--tint-neutral); color: var(--text-2);
+}
+.dlg-title {
+  margin: 0; font-size: var(--fs-lg); font-weight: 600; line-height: 1.25; letter-spacing: -0.01em;
+  min-width: 0; overflow-wrap: anywhere;
+}
+.dlg-close { margin-left: auto; flex: none; width: 28px; height: 28px; padding: 0; color: var(--muted); }
+.modal-body { padding: 6px 18px 14px; }
+.modal-foot {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 16px 12px 18px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  border-top: 0; box-shadow: 0 -1px 0 var(--line); background: none;
+  border-radius: 0 0 var(--r-xl) var(--r-xl);
+}
+.dlg-hint { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: var(--fs-xs); color: var(--muted); }
+
+/* Risk tone: red strip on top, red icon slab, a bigger slab. */
+.modal.dlg-danger { box-shadow: inset 0 3px 0 var(--red), var(--shadow-modal), var(--edge-hi); }
+.dlg-danger .dlg-icon { width: 38px; height: 38px; background: var(--tint-danger); color: var(--red); }
+
+/* Footer buttons. The old `.modal-foot button` (0,1,1: card fill, 1px border,
+   6px 12px padding) beats btn.css (all `:where()`, 0,0,0), so the box is
+   restated here at 0,2,0+. Colours are only READ from the --btn-* variables:
+   each variant (btn-primary, btn-amber, btn-warn, btn-danger-solid...) sets
+   its own on the element, so it keeps its colours with no extra rule. */
+.modal-foot .btn {
+  height: var(--btn-h); padding: 0 14px; border: 0; border-radius: var(--r-sm);
+  background: var(--btn-bg); color: var(--btn-fg); box-shadow: 0 0 0 1px var(--btn-ring);
+  font-size: var(--fs-ui);
+}
+.modal-foot .btn-icon { padding: 0; }
+.modal-foot .btn:hover:not(:disabled) { background: var(--btn-bg-hover); }
+.modal-foot .btn-ghost:hover:not(:disabled) { background: var(--tint-neutral); color: var(--text); }
+.modal-foot .btn:disabled { opacity: 0.42; cursor: not-allowed; }
+
+/* A dialog with its own header (the publish dialog): the slab hugs the top
+   left, the close cross sits level with the first line. */
+.dlg-head-custom { padding: 0 14px 0 0; align-items: flex-start; }
+.dlg-head-custom .dlg-close { margin-top: 18px; }
+
+@media (max-width: 780px) {
+  .modal, .modal-wide { border-radius: 0; }
+  .modal-head { border-radius: 0; }
+  .modal-foot { border-radius: 0; }
+  /* A 44px thumb for the ✕ without taller header: the box grows and gives it back as margin. */
+  .modal-head:not(.dlg-head-custom) .dlg-close { --btn-h: 44px; width: 44px; height: 44px; margin: -8px -8px -8px 0; }
+}
+@media (max-width: 480px) {
+  .modal-foot { align-items: stretch; }
+  .modal-foot .btn { width: 100%; justify-content: center; }
+  .dlg-hint { margin-right: 0; }
+}

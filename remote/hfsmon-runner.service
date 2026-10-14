@@ -1,0 +1,26 @@
+# The board's runner on a dev box: a LocalMachine served over the tailnet.
+# Installed by remote/bootstrap.sh into ~/.config/systemd/user/, with
+# @MONITOR_DIR@ filled in. Needs `loginctl enable-linger` to outlive logout.
+[Unit]
+Description=hfs-monitor runner
+After=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=@MONITOR_DIR@/server
+ExecStartPre=/usr/bin/mkdir -p %h/tmp
+ExecStart=/usr/bin/env node runner.js
+Restart=on-failure
+RestartSec=3
+# The login shell's PATH is not a service's: claude, cargo and gh live here.
+Environment=PATH=%h/.local/bin:%h/.cargo/bin:/usr/local/bin:/usr/bin:/bin
+# `/tmp` on this box is a 46 GB tmpfs — RAM. Sessions inherit this, so whatever
+# asks the system for a temp dir gets one on disk instead of eating memory.
+# It is half the fix: the paths a model types by hand are the other half, and
+# those are covered by the tmp rule the prompts carry. Without either, 21 GB of
+# cargo output under /tmp filled memory, the cgroup OOM killer fired, systemd
+# restarted this unit, and the restart SIGTERMed every chat on the machine.
+Environment=TMPDIR=%h/tmp
+
+[Install]
+WantedBy=default.target

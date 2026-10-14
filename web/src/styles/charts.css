@@ -1,0 +1,47 @@
+/* Owner: 0H-charts. Prefix: chart-. Colours only through tokens.css variables. */
+
+.chart-tone-ok { --chart-tone: var(--green); }
+.chart-tone-warn { --chart-tone: var(--amber); }
+.chart-tone-danger { --chart-tone: var(--red); }
+.chart-tone-live { --chart-tone: var(--live); }
+.chart-tone-neutral { --chart-tone: var(--muted); }
+
+.chart-ring,
+.chart-slotring,
+.chart-unitbar,
+.chart-spark,
+.chart-cols,
+.chart-minibar,
+.chart-checks { flex: none; display: block; }
+
+.chart-ring .chart-track { stroke: color-mix(in oklab, var(--chart-tone) 20%, transparent); }
+.chart-ring .chart-fill { stroke: var(--chart-tone); }
+
+.chart-slot-on {
+  stroke: var(--live);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--live) 55%, transparent));
+}
+.chart-slot-off { stroke: color-mix(in oklab, var(--live) 18%, transparent); }
+
+.chart-cell-done { fill: var(--done-cell); }
+.chart-cell-running {
+  fill: var(--live);
+  filter: drop-shadow(0 0 2px color-mix(in srgb, var(--live) 55%, transparent));
+}
+.chart-cell-pending { fill: var(--idle-seg); opacity: 0.45; }
+
+.chart-axis { stroke: var(--chart-axis); stroke-width: 1; }
+.chart-spark-line { stroke: var(--series-1); }
+.chart-spark-area { fill: var(--series-1); opacity: 0.12; }
+.chart-spark-dot { fill: var(--series-1); }
+
+.chart-col-past { fill: var(--series-muted); }
+.chart-col-now { fill: var(--series-1); }
+
+.chart-minibar .chart-track-fill { fill: color-mix(in oklab, var(--chart-tone) 20%, transparent); }
+.chart-minibar .chart-fill-solid { fill: var(--chart-tone); }
+
+.chart-track-idle { fill: var(--idle-seg); opacity: 0.3; }
+.chart-check-passed { fill: var(--green); }
+.chart-check-pending { fill: var(--live); }
+.chart-check-failed { fill: var(--red); }

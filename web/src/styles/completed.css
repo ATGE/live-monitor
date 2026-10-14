@@ -1,0 +1,122 @@
+/* completed — owner: 1-completed. See SCR plan §1.2. Prefix: cs- */
+
+.cs {
+  flex: none; display: flex; flex-direction: column; max-height: 46vh; min-height: 0;
+  background: var(--col); box-shadow: 0 -1px 0 var(--line);
+}
+.cs-bar {
+  flex: none; display: flex; align-items: center; gap: 20px; height: 46px;
+  padding: 0 12px 0 10px; box-sizing: border-box;
+}
+.cs-toggle {
+  flex: none; display: inline-flex; align-items: center; gap: 7px; height: 30px; padding: 0 8px;
+  border: 0; border-radius: var(--r-ctl); background: none; color: var(--text);
+  font-family: var(--font-sans); font-size: var(--fs-md); font-weight: 600; cursor: pointer;
+}
+.cs-toggle:hover:not(:disabled) { background: var(--tint-neutral); }
+.cs-toggle:disabled { cursor: default; }
+.cs-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cs-chevron { color: var(--muted); }
+.cs-ok { color: var(--green); }
+.cs-count {
+  display: inline-grid; place-items: center; min-width: 20px; height: 18px; padding: 0 6px;
+  border-radius: var(--r-pill); background: var(--tint-neutral); color: var(--muted);
+  font-size: var(--fs-2xs); font-weight: 600; font-variant-numeric: tabular-nums; box-sizing: border-box;
+}
+.cs-recent {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+  font-size: var(--fs-sm); color: var(--muted); white-space: nowrap;
+}
+.cs-recent b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* The map: a tick per task, coloured AND shaped by how it ended. */
+.cs-rail-wrap { position: relative; flex: 1 1 0; min-width: 0; }
+.cs-rail { display: flex; align-items: center; gap: 2px; height: 22px; overflow: hidden; }
+.cs-tick {
+  display: inline-block; flex: none; width: 4px; height: 14px; padding: 0; margin: 0; border: 0;
+  border-radius: 1.5px; box-sizing: border-box;
+}
+.cs-tick-merged { background: var(--green); }
+.cs-tick-nopr { background: none; box-shadow: inset 0 0 0 1.5px var(--muted); }
+.cs-tick-closed {
+  background: linear-gradient(to top, var(--amber) 50%, transparent 50%);
+  box-shadow: inset 0 0 0 1.5px var(--amber);
+}
+.cs-rail-tick {
+  position: relative; flex: 0 1 4px; min-width: 2px; cursor: pointer; opacity: .55;
+  transition: height 90ms ease-out, opacity 120ms;
+}
+/* A bigger target than the 4 px it draws. */
+.cs-rail-tick::before { content: ''; position: absolute; inset: -4px -1px; }
+.cs-rail-tick.in-view { opacity: 1; }
+/* Sizes by distance to the hovered tick: the dock effect, in three steps. */
+.cs-rail-tick.d2 { height: 16px; }
+.cs-rail-tick.d1 { height: 18px; }
+.cs-rail-tick.d0 { height: 22px; opacity: 1; }
+.cs-rail-tick:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; opacity: 1; }
+@media (prefers-reduced-motion: reduce) {
+  .cs-rail-tick { transition: none; }
+}
+
+.cs-legend {
+  margin-left: auto; flex: none; display: inline-flex; gap: 14px;
+  font-size: var(--fs-xs); color: var(--muted); white-space: nowrap;
+}
+.cs-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+.cs-legend .cs-tick { height: 11px; }
+
+.cs-popup {
+  position: fixed; z-index: 30; width: 280px; box-sizing: border-box;
+  background: var(--surface-4); border-radius: var(--r-md); padding: 8px 10px;
+  box-shadow: var(--shadow-pop), var(--edge-hi); font-size: var(--fs-sm); cursor: pointer;
+}
+.cs-popup-title { font-weight: 600; line-height: 1.35; }
+.cs-popup-issue { color: var(--live); font-variant-numeric: tabular-nums; }
+.cs-popup-branch {
+  display: block; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); margin: 3px 0 5px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cs-popup-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--fs-xs); }
+.cs-popup-pr { color: var(--muted); font-variant-numeric: tabular-nums; }
+.cs-popup-hint { margin-top: 6px; font-size: var(--fs-xs); color: var(--muted); }
+
+/* Unfolded: the tools row, then the cards. */
+.cs-body { display: flex; flex-direction: column; min-height: 0; padding: 0 14px 12px; }
+.cs-tools {
+  flex: none; display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+  font-size: var(--fs-sm); color: var(--muted);
+}
+.cs-size-input {
+  font: inherit; font-size: var(--fs-sm); width: 64px; box-sizing: border-box; height: var(--h-sm);
+  padding: 0 8px; border: 0; border-radius: var(--r-sm); background: var(--bg); color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--line-strong); user-select: text; -webkit-user-select: text;
+}
+.cs-size-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cs-all.is-on { color: var(--text); background: var(--tint-neutral); }
+.cs-pager { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; }
+.cs-pager .is-current { background: var(--tint-neutral-hover); color: var(--text); font-weight: 600; }
+.cs-gap { color: var(--muted); padding: 0 2px; }
+.cs-pager-text { font-variant-numeric: tabular-nums; padding: 0 4px; }
+.cs-pager-compact { display: none; margin-left: auto; }
+.cs-cards {
+  display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; align-items: flex-start; min-height: 0;
+}
+.cs-cards > .tc-compact { flex: none; width: var(--card-w); }
+.cs-empty { padding: 18px 4px; color: var(--muted); font-size: var(--fs-ui); }
+
+/* The card a tick jumped to: the shell flashes it with .tc.is-located. */
+
+@media (max-width: 780px) {
+  /* The strip sits under the home indicator; the bar keeps its 46px above it. */
+  .cs { max-height: 46vh; max-height: 46dvh; padding-bottom: env(safe-area-inset-bottom); }
+  .cs-bar { gap: 10px; padding: 0 12px 0 10px; overflow: hidden; }
+  .cs-rail-wrap, .cs-legend { display: none; }
+  .cs-recent svg { display: none; }
+  .cs-recent { margin-left: auto; }
+  .cs-body { padding: 0 10px 10px; }
+  .cs-tools { flex-wrap: wrap; }
+  .cs-pager:not(.cs-pager-compact) { display: none; }
+  .cs-pager-compact { display: inline-flex; }
+  .cs-cards { scroll-snap-type: x mandatory; }
+  .cs-cards > .tc-compact { width: min(82vw, var(--card-w)); scroll-snap-align: center; }
+}

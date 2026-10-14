@@ -1,0 +1,135 @@
+/* dialogs-b — owner: 1-dialogs-b. See SCR plan §1.2.
+   Update, PR title, reviewer and login dialogs (and the login card). They have
+   no artboard of their own: they inherit C's language (tonal blocks from the
+   --tint-* tokens, fields outlined with --line-strong, btn-* buttons).
+   Old class names are kept, so each rule here repeats the old selector and
+   wins by load order (this file comes after styles.css). */
+
+/* ---- fields: one outline for every text field of these dialogs ---- */
+.dlg-b-field,
+.reviewer-dialog .option-input,
+.pr-title-dialog .pr-title-input,
+.login-code input {
+  font: inherit; font-size: var(--fs-md); color: var(--text);
+  background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--r-ctl);
+  padding: 7px 10px;
+}
+.dlg-b-field:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pr-title-dialog .pr-title-input { width: 100%; resize: vertical; }
+.pr-title-dialog .pr-title-input.is-over { border-color: var(--red); }
+
+/* ---- reviewer: the list of logins ---- */
+.dlg-b-results { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 4px; }
+.dlg-b-results .dlg-b-pick { width: 100%; height: auto; min-height: var(--h-md); padding: 6px 10px; justify-content: flex-start; text-align: left; }
+
+/* ---- update dialog ---- */
+.upgrade-dialog .upgrade-section { margin: 0 0 14px; }
+.upgrade-dialog .upgrade-section:last-child { margin-bottom: 0; }
+.upgrade-dialog h4 {
+  margin: 0 0 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--text);
+  display: flex; align-items: baseline; gap: 10px;
+}
+.upgrade-dialog .upgrade-notes { font-weight: 400; font-size: var(--fs-sm); color: var(--accent); text-decoration: none; }
+.upgrade-dialog .upgrade-notes:hover { text-decoration: underline; }
+.upgrade-dialog .upgrade-muted { margin: 0; color: var(--muted); font-size: var(--fs-sm); display: flex; align-items: center; gap: 8px; }
+.upgrade-dialog .upgrade-note { margin: 0 0 12px; font-size: var(--fs-sm); color: var(--accent); }
+.upgrade-dialog .upgrade-error { margin: 0 0 12px; font-size: var(--fs-sm); color: var(--red); overflow-wrap: anywhere; }
+.upgrade-dialog .upgrade-warn-text { margin: 4px 0 0; font-size: var(--fs-sm); color: var(--amber); }
+.upgrade-dialog .upgrade-warn { color: var(--amber); }
+.upgrade-dialog .upgrade-disabled-reason { color: var(--amber); }
+
+.upgrade-table-wrap { overflow-x: auto; }
+.upgrade-versions { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.upgrade-versions th, .upgrade-versions td {
+  text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.upgrade-versions th { color: var(--muted); font-weight: 500; font-size: var(--fs-sm); }
+.upgrade-versions code { font-size: var(--fs-sm); color: var(--info-fg); }
+.upgrade-versions .upgrade-state-ok { color: var(--green); }
+.upgrade-versions .upgrade-state-warn { color: var(--amber); }
+.upgrade-versions .upgrade-state-error { color: var(--red); }
+.upgrade-versions .upgrade-state-off { color: var(--muted); }
+
+.upgrade-plan { margin: 0; padding-left: 20px; font-size: var(--fs-sm); color: var(--text); }
+.upgrade-plan > li { padding: 2px 0; overflow-wrap: anywhere; }
+.upgrade-plan ul { margin: 2px 0 0; padding-left: 16px; color: var(--muted); }
+.upgrade-plan .upgrade-plan-note { font-size: var(--fs-sm); color: var(--amber); }
+
+.upgrade-blockers {
+  list-style: none; margin: 0; padding: 6px 8px;
+  border: 0; border-radius: var(--r-ctl); background: var(--tint-danger);
+  font-size: var(--fs-sm); color: var(--red);
+}
+.upgrade-blockers li { padding: 2px 0; overflow-wrap: anywhere; }
+.upgrade-blockers li.lifted { text-decoration: line-through; color: var(--muted); }
+.upgrade-only-laptop { display: flex; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--text); cursor: pointer; }
+.upgrade-reasons, .upgrade-warnings { margin: 0 0 8px; padding-left: 18px; font-size: var(--fs-sm); }
+.upgrade-reasons { color: var(--text); }
+.upgrade-warnings { color: var(--amber); }
+
+.upgrade-steps { list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); }
+.upgrade-step {
+  display: grid; grid-template-columns: 18px minmax(0, auto) minmax(0, 1fr); align-items: center; gap: 8px;
+  padding: 3px 0; border-bottom: 1px solid var(--line);
+}
+.upgrade-step:last-child { border-bottom: none; }
+.upgrade-step-icon { display: inline-flex; justify-content: center; }
+.upgrade-step-icon .spinner { width: 9px; height: 9px; border-width: 1.5px; }
+.upgrade-step-detail { color: var(--muted); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.upgrade-step-ok .upgrade-step-icon { color: var(--green); }
+.upgrade-step-failed .upgrade-step-icon, .upgrade-step-failed .upgrade-step-label { color: var(--red); }
+.upgrade-step-warn .upgrade-step-icon { color: var(--amber); }
+.upgrade-step-skipped { color: var(--muted); }
+.upgrade-step-running .upgrade-step-label { color: var(--accent); }
+
+.upgrade-log {
+  margin: 8px 0 0; max-height: 220px; overflow: auto; padding: 8px 10px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: var(--r-ctl);
+  font-family: var(--font-mono); font-size: var(--fs-sm); line-height: 1.45; color: var(--text); white-space: pre;
+}
+.upgrade-result { margin: 0; padding-left: 18px; font-size: var(--fs-md); }
+.upgrade-result li { padding: 1px 0; overflow-wrap: anywhere; }
+.upgrade-result .upgrade-result-warn { color: var(--amber); }
+.upgrade-result .upgrade-result-error { color: var(--red); }
+
+/* ---- PR title dialog ---- */
+.pr-title-dialog .pr-title-why {
+  margin: 0 0 12px; padding: 8px 10px; border: 0; border-radius: var(--r-ctl);
+  background: var(--tint-warn);
+}
+.pr-title-dialog .pr-title-why h4 { margin: 0 0 4px; font-size: var(--fs-sm); font-weight: 600; color: var(--amber); }
+.pr-title-dialog .pr-title-problems { margin: 0; padding-left: 18px; font-size: var(--fs-sm); }
+.pr-title-dialog .pr-title-problems li { padding: 1px 0; overflow-wrap: anywhere; }
+.pr-title-dialog .pr-title-refused { margin: 10px 0 0; background: var(--tint-danger); }
+.pr-title-dialog .pr-title-refused h4 { color: var(--red); }
+.pr-title-dialog .pr-title-label { display: block; margin-bottom: 4px; font-size: var(--fs-sm); color: var(--muted); }
+.pr-title-dialog .pr-title-count {
+  margin: 4px 0 0; font-size: var(--fs-sm); color: var(--muted); text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pr-title-dialog .pr-title-count.is-over { color: var(--red); font-weight: 600; }
+.pr-title-dialog .pr-title-failure { margin: 10px 0 0; font-size: var(--fs-sm); color: var(--red); overflow-wrap: anywhere; }
+
+/* ---- login dialog and card (restart-* classes are scoped here so the restart dialog keeps its own) ---- */
+.login-dialog .restart-busy { margin: 0 0 10px; padding-left: 18px; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+.login-dialog .restart-busy li { padding: 2px 0; }
+.login-dialog .restart-busy-kind, .login-dialog .restart-muted { color: var(--muted); font-size: var(--fs-sm); }
+.login-dialog .restart-muted { margin: 0 0 8px; }
+.login-dialog .restart-error { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--red); overflow-wrap: anywhere; }
+.login-link { font-weight: 600; overflow-wrap: anywhere; }
+.login-code { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.login-code input { flex: 1; min-width: 0; }
+/* Sits inside the red block of a failed card and inside a chat. */
+.login-card {
+  display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0;
+  font-size: var(--fs-md); padding: 8px 10px; border-radius: var(--r-ctl); background: var(--tint-danger);
+}
+.login-card .login-card-text { overflow-wrap: anywhere; flex: 1 1 14em; min-width: 0; }
+
+@media (max-width: 780px) {
+  /* The modal takes the whole screen there: a title too long is exactly what
+     has to be read whole before editing it. */
+  .pr-title-dialog .pr-title-input { min-height: 12em; }
+  .login-code { flex-wrap: wrap; }
+  .login-code input { flex: 1 1 100%; }
+}

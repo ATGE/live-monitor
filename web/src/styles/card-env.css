@@ -1,0 +1,97 @@
+/* card-env — owner: 1-card-env. See SCR plan §1.2. */
+
+/* Section note: the machine the task runs on, next to the title. */
+.tc-section-note:has(> svg) { display: inline-flex; align-items: center; gap: 4px; }
+
+.tce-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+
+.tce-machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: var(--h-sm);
+  padding: 0 4px 0 8px;
+  border-radius: var(--r-sm);
+  background: var(--tint-neutral);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.tce-machine select {
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Stack box. A new class (not the old `.stack`) so the old margin-top: 8px
+   of styles.css does not add to the section's gap. */
+.tce-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 6px 6px 8px 10px;
+  border-radius: var(--r-ctl);
+  background: var(--bg);
+  min-width: 0;
+}
+.tce-stack-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tce-stack-status {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tce-stack-error .tce-stack-status { white-space: normal; overflow-wrap: anywhere; }
+.tce-stop { flex: none; height: 26px; }
+.tce-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; }
+.tce-dot-ok { background: var(--green); }
+.tce-dot-error { background: var(--red); }
+
+.tce-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.tce-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  background: var(--tint-neutral);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.tce-link:hover { background: var(--tint-neutral-hover); }
+.tce-link.is-up > svg:first-child { color: var(--green); }
+.tce-link.is-pending > svg:first-child { color: var(--amber); }
+.tce-link > svg:last-child { color: var(--muted); }
+
+/* Worktrees kept on other machines. */
+.tce-place {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 2px 0 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  font-size: var(--fs-xs);
+  color: var(--text-2);
+}
+.tce-place > svg { flex: none; color: var(--muted); }
+.tce-place-text { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tce-place-text b { font-weight: 600; color: var(--text); }
+.tce-place-delete { flex: none; width: 24px; height: 22px; padding: 0; }
+
+/* Half-width (phone, two sections side by side): buttons wrap, never overflow. */
+@media (max-width: 780px) {
+  .tce-actions .btn, .tce-machine { max-width: 100%; }
+  .tce-stop { height: var(--h-touch); }
+}

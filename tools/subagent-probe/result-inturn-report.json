@@ -1,0 +1,145 @@
+{
+  "sdk": "0.3.291",
+  "claudeCode": "2.1.291",
+  "sdkDir": "<sdk dir: not recorded>",
+  "mode": "rewrite",
+  "runs": [
+    {
+      "label": "no hook (background subagent)",
+      "events": [
+        {
+          "t": 2594,
+          "kind": "init"
+        },
+        {
+          "t": 5269,
+          "kind": "tool_use",
+          "id": "toolu_015Qjrcr4goU9xzdEPw5Zrp4",
+          "messageId": "msg_011CfkdkGxruk1fiSM4vjbgJ",
+          "name": "Agent",
+          "run_in_background": true,
+          "inputKeys": [
+            "description",
+            "subagent_type",
+            "prompt",
+            "run_in_background"
+          ]
+        },
+        {
+          "t": 5282,
+          "kind": "background_tasks_changed",
+          "tasks": [
+            {
+              "task_type": "local_agent"
+            }
+          ]
+        },
+        {
+          "t": 5283,
+          "kind": "task_started",
+          "task_id": "a9e3e0f29df1b13cb",
+          "fields": [
+            "description",
+            "is_backgrounded",
+            "prompt",
+            "session_id",
+            "spawn_depth",
+            "subagent_type",
+            "subtype",
+            "task_id",
+            "task_type",
+            "tool_use_id",
+            "type",
+            "uuid"
+          ],
+          "task_type": "local_agent",
+          "subagent_type": "general-purpose",
+          "tool_use_id": "toolu_015Qjrcr4goU9xzdEPw5Zrp4",
+          "is_backgrounded": true
+        },
+        {
+          "t": 5292,
+          "kind": "tool_result",
+          "text": "[{\"type\":\"text\",\"text\":\"Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\\nagentId: a9e3e0f29df1b13cb (internal ID - do n"
+        },
+        {
+          "t": 5667,
+          "kind": "bash_use",
+          "id": "toolu_019JGxVGzeHKKy31wYwYsjyW",
+          "messageId": "msg_011CfkdkGxruk1fiSM4vjbgJ",
+          "command": "sleep 25"
+        },
+        {
+          "t": 5669,
+          "kind": "tool_result",
+          "is_error": true,
+          "text": "<tool_use_error>Blocked: standalone sleep 25. To wait for a condition, use Monitor with an until-loop (e.g. `until <check>; do sleep 2; done`). To wait for a command you started, use run_in_background: true. Do not chain shorter sleeps to w"
+        },
+        {
+          "t": 6412,
+          "kind": "background_tasks_changed",
+          "tasks": []
+        },
+        {
+          "t": 6413,
+          "kind": "task_notification",
+          "task_id": "a9e3e0f29df1b13cb",
+          "fields": [
+            "output_file",
+            "session_id",
+            "status",
+            "subtype",
+            "summary",
+            "task_id",
+            "tool_use_id",
+            "type",
+            "usage",
+            "uuid"
+          ],
+          "status": "completed",
+          "tool_use_id": "toolu_015Qjrcr4goU9xzdEPw5Zrp4"
+        },
+        {
+          "t": 10318,
+          "kind": "result",
+          "subtype": "success",
+          "text": "The Bash tool blocked the foreground `sleep 25` command as a safeguard against polling patterns. The system requires using either `run_in_background: true` or `Monitor` for wait operations.\n\nThe Agent (subagent_type: general-purpose) is running in the background and will notify when complete.\n\nFINAL: DONE",
+          "turns": 3
+        },
+        {
+          "t": 10326,
+          "kind": "init"
+        },
+        {
+          "t": 12938,
+          "kind": "result",
+          "subtype": "success",
+          "text": "Background agent completed: PONG received.",
+          "turns": 1
+        }
+      ],
+      "verdict": {
+        "reportedInsideFirstTurn": true,
+        "initAfterFirstResult": true,
+        "resultTexts": [
+          "The Bash tool blocked the foreground `sleep 25` command as a safeguard against polling patterns. The system requires using either `run_in_background: true` or `Monitor` for wait operations.\n\nThe Agent (subagent_type: general-purpose) is running in the background and will notify when complete.\n\nFINAL: DONE",
+          "Background agent completed: PONG received."
+        ],
+        "backgroundAgentCalls": 1,
+        "bashCalls": 1,
+        "hookCalls": 0,
+        "taskStarted": 1,
+        "isBackgrounded": [
+          true
+        ],
+        "taskTypes": [
+          "local_agent"
+        ],
+        "toolResultSaysBackground": true,
+        "firstResultBeforeNotification": false,
+        "initAfterNotification": true,
+        "results": 2
+      }
+    }
+  ]
+}

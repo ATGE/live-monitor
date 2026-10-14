@@ -1,0 +1,8 @@
+{
+  "name": "hfs-ux",
+  "version": "0.1.0",
+  "description": "UX skills owned by the hfs-monitor board: design-canvas flow, heuristic review and accessibility audit, plus accessibility, information-architecture and navigation checklists.",
+  "author": {
+    "name": "hfs-monitor"
+  }
+}

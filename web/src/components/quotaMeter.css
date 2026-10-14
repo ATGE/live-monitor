@@ -1,0 +1,160 @@
+/* ---------- the quota meter: one line in the header, the rest on hover ---------- */
+
+/* The collapsed button is `● ▓▓▓▓▓▓▓░░ 71%` and nothing else: a dot for the
+   five-hour session, and the bar plus the number for the **week**, which is
+   the window that can actually end a day (five hours refill over lunch; a week
+   does not). Everything it used to say out loud — the labels, the reset hours,
+   the other windows — moved into the popover, which is a hover away. */
+.quota-meter {
+  position: relative;
+  display: inline-flex;
+  color: var(--muted);
+}
+
+.quota-meter-btn {
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
+  min-width: 92px;
+  /* A capped width, not just `min-width: 0` on the label: the root is an
+     inline-flex sized to its content, so a long hold headline ("⏳ cuota
+     agotada · reabre 14:30 · 3 tareas en pausa") would widen the button until
+     the whole topbar wraps. With a ceiling the label ellipses instead. */
+  max-width: min(360px, 60vw);
+  font: inherit; color: inherit; text-align: left; cursor: pointer;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: 10px;
+  padding: 4px 8px;
+}
+.quota-meter-btn:hover { background: #232b39; }
+.quota-meter-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* The session's five-hour window, reduced to a colour. It has no bar and no
+   number here on purpose: two bars side by side read as one split figure, and
+   the point is that only one of them is worth a number in the header. Its
+   `title`/`aria-label` carry the percentage for whoever wants it. */
+.quota-meter-dot {
+  flex: none; width: 8px; height: 8px; border-radius: var(--r-pill);
+  background: var(--muted);
+}
+.quota-meter-dot[data-tone="ok"] { background: var(--green); }
+.quota-meter-dot[data-tone="warn"] { background: var(--amber); }
+.quota-meter-dot[data-tone="error"] { background: var(--red); }
+.quota-meter-dot[data-tone="idle"] { background: var(--muted); }
+
+/* The label is a `<span>` in the markup, not a `<div>` — a `<button>` only
+   accepts phrasing content.
+
+   It only appears for the exceptions (a hold's own text, "sin datos"), so it
+   may grow long: `min-width: 0` is what lets it ellipsis inside the flex row,
+   against the `max-width` above, instead of pushing the bar and the number off
+   the header. */
+.quota-meter-label {
+  min-width: 0;
+  font-size: var(--fs-sm); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.quota-meter-pct { flex: none; font-size: var(--fs-sm); font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+
+/* The bar itself: a track in the card colour, a fill in the tone's colour
+   driven by `--pct` so one rule covers every width instead of one per row.
+   Also `<span>`s for the same phrasing-content reason as above. */
+.quota-meter-bar {
+  display: block;
+  height: 6px; border-radius: var(--r-pill); overflow: hidden;
+  background: var(--bg); border: 1px solid var(--card-border);
+}
+/* `flex: 1` so the bar, and only the bar, absorbs whatever width the header
+   leaves over — the dot and the number keep their size. */
+.quota-meter-bar-main { flex: 1 1 auto; height: 6px; min-width: 56px; }
+.quota-meter-bar-fill {
+  display: block;
+  height: 100%; width: calc(var(--pct, 0) * 1%); min-width: 2px;
+  background: currentColor; border-radius: inherit;
+  transition: width 300ms ease-out;
+}
+
+/* Tone tokens, shared by the collapsed button and every row inside the
+   popover — `currentColor` on the fill picks these up for free. */
+.quota-meter[data-tone="ok"] { color: var(--green); }
+.quota-meter[data-tone="warn"] { color: var(--amber); }
+.quota-meter[data-tone="error"] { color: var(--red); }
+.quota-meter[data-tone="busy"] { color: var(--accent); }
+.quota-meter[data-tone="idle"] { color: var(--muted); }
+.quota-meter[data-tone="warn"] .quota-meter-btn { border-color: var(--warn-border); }
+.quota-meter[data-tone="error"] .quota-meter-btn { border-color: var(--danger-border); background: var(--danger-bg); }
+.quota-meter[data-tone="busy"] .quota-meter-btn { border-color: var(--info-border); background: var(--info-bg); }
+.quota-meter[data-tone="ok"] .quota-meter-btn { border-color: var(--ok-border); }
+
+/* ---------- the popover: everything the collapsed button had no room for ---------- */
+
+.quota-meter-pop {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 35;
+  width: 320px; max-width: calc(100vw - 24px);
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--r-lg);
+  padding: 12px 14px; box-shadow: var(--shadow-pop);
+  color: var(--text); font-size: var(--fs-sm);
+}
+
+.quota-meter-hold {
+  padding: 8px 10px; border-radius: var(--r-md);
+  background: var(--danger-bg); border: 1px solid var(--danger-border);
+}
+.quota-meter[data-tone="busy"] .quota-meter-hold { background: var(--info-bg); border-color: var(--info-border); }
+.quota-meter-hold-title { margin: 0; font-size: var(--fs-sm); }
+.quota-meter-hold-facts {
+  margin: 6px 0 0; padding-left: 18px; font-size: var(--fs-sm); color: var(--muted);
+}
+
+.quota-meter-group-title {
+  margin: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.02em; color: var(--muted);
+}
+.quota-meter-group + .quota-meter-group { margin-top: 4px; }
+
+.quota-meter-row + .quota-meter-row { margin-top: 8px; }
+.quota-meter-row-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.quota-meter-row-label { font-weight: 500; }
+.quota-meter-row-pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+.quota-meter-row[data-tone="ok"] { color: var(--green); }
+.quota-meter-row[data-tone="warn"] { color: var(--amber); }
+.quota-meter-row[data-tone="error"] { color: var(--red); }
+.quota-meter-row[data-tone="idle"] { color: var(--muted); }
+.quota-meter-row .quota-meter-bar { margin-top: 4px; height: 6px; }
+.quota-meter-row-countdown {
+  display: block; margin-top: 3px; font-size: var(--fs-xs); color: var(--muted); overflow-wrap: anywhere;
+}
+
+.quota-meter-empty { margin: 0; color: var(--muted); }
+
+.quota-meter-extra {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px;
+  padding-top: 8px; border-top: 1px solid var(--card-border);
+  font-size: var(--fs-sm); color: var(--muted);
+}
+.quota-meter-extra-label { font-weight: 600; color: var(--text); }
+
+.quota-meter-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 8px; border-top: 1px solid var(--card-border);
+  font-size: var(--fs-xs); color: var(--muted);
+}
+.quota-meter-footer-text { overflow-wrap: anywhere; }
+.quota-meter-refresh {
+  flex: none; font: inherit; font-size: var(--fs-md); line-height: 1; cursor: pointer;
+  background: var(--bg); color: var(--text); border: 1px solid var(--card-border); border-radius: var(--r-sm);
+  padding: 3px 7px;
+}
+.quota-meter-refresh:hover { background: #232b39; }
+
+@media (max-width: 780px) {
+  /* No room beside the button for a 320px popover: it takes the width the
+     modals already take at this size (styles.css:1357), anchored under the
+     header instead of the button so it never runs off the right edge.
+     `top: 56px` is a fallback only — QuotaMeter.jsx measures the button's own
+     `getBoundingClientRect().bottom` when it opens and sets an inline `top`
+     from that, so the popover tracks the header's real height instead of an
+     assumed one; this rule only fires when that measurement wasn't taken
+     (matchMedia unsupported, a headless test DOM with a zeroed layout). */
+  .quota-meter-pop {
+    position: fixed; left: 8px; right: 8px; top: 56px; width: auto; max-width: none;
+    max-height: calc(100vh - 64px); overflow-y: auto;
+  }
+}

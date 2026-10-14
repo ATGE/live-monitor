@@ -1,0 +1,84 @@
+/* task-tabs — owner: 1-task-tabs. See SCR plan §1.2.
+   Level 1 (the tasks) stays flat rectangles on the darkest bar; the active
+   tab takes the panel's colour and a 2px top mark so it flows into the panel
+   it names. Every rule here is at least as specific as its twin in
+   styles.css and comes after it, so it wins without `!important`. */
+.task-tabs-bar { height: 40px; background: var(--bg); }
+.task-tabs-bar .task-tab {
+  min-width: 120px; max-width: 220px;
+  background: var(--bg); color: var(--muted);
+  font-size: var(--fs-sm);
+  border-right: 0;
+  box-shadow: inset -1px 0 0 var(--line);
+}
+.task-tabs-bar .task-tab:hover { background: var(--tint-neutral); color: var(--text); }
+/* The project chat: fuchsia, an object type and not a state. */
+.task-tabs-bar .task-tab.is-project { color: var(--project); background: var(--bg); box-shadow: inset -1px 0 0 var(--line); }
+.task-tabs-bar .task-tab.is-project:hover { background: var(--tint-project); color: var(--project); }
+.task-tabs-bar .task-tab.is-active {
+  background: var(--col); color: var(--text);
+  box-shadow: inset 0 2px 0 var(--text-2), inset -1px 0 0 var(--line);
+}
+.task-tabs-bar .task-tab.is-project.is-active {
+  background: var(--col); color: var(--project);
+  box-shadow: inset 0 2px 0 var(--project), inset -1px 0 0 var(--line);
+}
+/* Bold lives on the text spans only (their hidden bold ghost reserves the
+   width), never on the container: no tab changes width when selected. */
+.task-tab.is-active .task-tab-num,
+.task-tab.is-active .task-tab-title { font-weight: 700; color: var(--text); }
+.task-tab.is-project.is-active .task-tab-title { color: var(--project); }
+.task-tab-num { font-weight: 600; font-variant-numeric: tabular-nums; }
+.task-tab-num::after,
+.task-tab-title::after {
+  content: attr(data-label);
+  display: block; height: 0; overflow: hidden;
+  font-weight: 700; white-space: nowrap; visibility: hidden;
+}
+.task-tab-title {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  color: var(--muted);
+}
+.task-tabs-bar .task-tab-label { gap: 7px; padding: 0 4px 0 12px; }
+.tt-lead { display: inline-grid; place-items: center; width: 14px; flex: none; }
+.tt-ask { display: inline-grid; color: var(--amber); font-size: var(--fs-xs); }
+.tt-run { color: var(--muted); }
+.tt-sr {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+/* Close: 20x20, quiet until the tab is hovered or active (never disabled). */
+.task-tabs-bar .tt-close {
+  flex: none; width: 20px; height: 20px; min-height: 0; margin: 0 8px 0 2px; padding: 0;
+  border-radius: var(--r-xs); font-size: var(--fs-xs); opacity: 0;
+}
+.task-tab:hover .tt-close,
+.task-tab.is-active .tt-close,
+.task-tabs-bar .tt-close:focus-visible { opacity: 1; }
+.task-tabs-bar .tt-close:hover { color: var(--red); }
+.task-tabs-bar .task-tabs-arrow { background: var(--bg); }
+.task-tabs-bar .task-tabs-collapse {
+  flex: none; align-self: center; width: 28px; height: 28px; min-height: 0;
+  margin: 0 6px; padding: 0; border: 0; border-radius: var(--r-sm);
+  background: none; color: var(--muted);
+}
+.task-tabs-bar .task-tabs-collapse:hover { background: var(--tint-neutral); color: var(--text); }
+/* Icon + number mode: the 120px floor above would otherwise beat the
+   `min-width: 0` of styles.css, which is less specific. */
+@container (max-width: 460px) {
+  .task-tabs-bar .task-tab { min-width: 0; }
+}
+/* No hover to reveal the ✕ on a touch screen: it is always there. */
+@media (hover: none) {
+  .task-tabs-bar .tt-close { opacity: 1; }
+}
+@media (max-width: 780px) {
+  .task-tabs-bar .task-tab { min-width: 0; }
+  /* Thumb targets, as styles.css 1292-1300 already sets the strip's height. */
+  .task-tabs-bar { height: 44px; }
+  .task-tabs-bar .task-tabs-collapse { width: 44px; height: 44px; margin: 0; }
+  .task-tabs-bar .tt-close { width: 32px; height: 32px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .task-tabs-bar .tt-close { transition: none; }
+}

@@ -1,0 +1,104 @@
+{
+  "port": 18999,
+  "github": { "repo": "test-org/test-repo", "assignee": "test-assignee", "reviewer": "test-reviewer" },
+  "poll": { "intervalSeconds": 36000 },
+  "project": {
+    "repoPath": "/nonexistent/hfsmon-test/repo",
+    "worktreeRoot": "/nonexistent/hfsmon-test/worktrees"
+  },
+  "limits": {
+    "defaultMaxActiveTasks": 2,
+    "maxActiveTasksCeiling": 4,
+    "maxFixIterations": 3,
+    "maxGapRounds": 3,
+    "completedShown": 10
+  },
+  "claude": {
+    "triageModel": "haiku",
+    "advisorModel": "opus",
+    "planModel": "opus",
+    "fixModel": "sonnet",
+    "chatModel": "sonnet",
+    "demoModel": "sonnet",
+    "replyModel": "sonnet",
+    "prModel": "sonnet",
+    "chatIdleMinutes": 15,
+    "tuning": {
+      "triageEffort": "auto",
+      "advisorEffort": "auto",
+      "planEffort": "auto",
+      "fixEffort": "auto",
+      "prEffort": "auto",
+      "demoEffort": "auto",
+      "replyEffort": "auto",
+      "chatEffort": "auto",
+      "triageThinking": "auto",
+      "advisorThinking": "auto",
+      "planThinking": "auto",
+      "fixThinking": "auto",
+      "prThinking": "auto",
+      "demoThinking": "auto",
+      "replyThinking": "auto",
+      "chatThinking": "auto",
+      "fastMode": false
+    },
+    "available": [
+      { "id": "opus", "label": "Opus", "hint": "test fixture" },
+      { "id": "sonnet", "label": "Sonnet", "hint": "test fixture" },
+      { "id": "haiku", "label": "Haiku", "hint": "test fixture" }
+    ]
+  },
+  "e2e": {
+    "relativeCwd": "app",
+    "installCommand": "npm ci",
+    "testCommand": "npm test",
+    "prepareCommand": "npm run prepare",
+    "portEnv": "TEST_PORT",
+    "workers": 1,
+    "timeoutMinutes": 10,
+    "prepareTimeoutMinutes": 10,
+    "portOffsets": [0, 1, 2, 3, 4, 5],
+    "portRange": { "from": 28000, "to": 28999 },
+    "env": { "CI": "1" }
+  },
+  "qa": {
+    "mcpVersion": "0.0.0",
+    "model": "sonnet",
+    "planModel": "opus",
+    "effort": "auto",
+    "planEffort": "auto",
+    "maxWaitMinutes": 10
+  },
+  "opencode": {
+    "engine": "harness",
+    "harnessModel": "test-provider/test-harness-model",
+    "bin": "opencode",
+    "model": "test-provider/test-model",
+    "variant": "default",
+    "timeoutMinutes": 30
+  },
+  "stack": {
+    "profile": "test",
+    "buildCommand": "echo build",
+    "buildTimeoutMinutes": 10,
+    "healthTimeoutMinutes": 2,
+    "portRange": { "from": 29000, "to": 29099 },
+    "services": {
+      "hfs": {
+        "label": "Test service",
+        "portEnv": "TEST_SERVER_PORT",
+        "healthPath": "/health",
+        "binName": "test-server"
+      },
+      "hts": {
+        "label": "Test service 2",
+        "portEnv": "TEST_SERVER2_PORT",
+        "healthPath": "/health",
+        "binName": "test-server2"
+      }
+    }
+  },
+  "plan": { "maxRetries": 3, "maxParallel": 2 },
+  "retry": { "max": 3 },
+  "ask": { "timeoutMinutes": 20 }
+}

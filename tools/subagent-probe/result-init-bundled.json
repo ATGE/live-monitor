@@ -1,0 +1,178 @@
+{
+  "sdk": "0.3.292",
+  "claudeCode": "2.1.292",
+  "cli": "<bundled>",
+  "sdkDir": "<sdk dir: not recorded>",
+  "mode": "rewrite",
+  "runs": [
+    {
+      "label": "no hook (background subagent)",
+      "events": [
+        {
+          "t": 3001,
+          "kind": "init"
+        },
+        {
+          "t": 7528,
+          "kind": "tool_use",
+          "id": "toolu_01RPRUdiTgkPbi6PkvwGrSZ7",
+          "messageId": "msg_011CfmxKnFX3UkvCMp6jBgaw",
+          "name": "Agent",
+          "run_in_background": true,
+          "inputKeys": [
+            "description",
+            "subagent_type",
+            "run_in_background",
+            "prompt"
+          ]
+        },
+        {
+          "t": 7544,
+          "kind": "background_tasks_changed",
+          "tasks": [
+            {
+              "task_type": "local_agent"
+            }
+          ]
+        },
+        {
+          "t": 7550,
+          "kind": "task_started",
+          "task_id": "a0c5b0c993a6c3ba7",
+          "fields": [
+            "description",
+            "is_backgrounded",
+            "prompt",
+            "run_id",
+            "session_id",
+            "spawn_depth",
+            "subagent_type",
+            "subtype",
+            "task_id",
+            "task_type",
+            "tool_use_id",
+            "type",
+            "uuid"
+          ],
+          "task_type": "local_agent",
+          "subagent_type": "general-purpose",
+          "tool_use_id": "toolu_01RPRUdiTgkPbi6PkvwGrSZ7",
+          "is_backgrounded": true
+        },
+        {
+          "t": 7570,
+          "kind": "tool_result",
+          "text": "[{\"type\":\"text\",\"text\":\"Async agent launched successfully. (This tool result is internal metadata — never quote or paste any part of it, including the agentId below, into a user-facing reply.)\\nagentId: a0c5b0c993a6c3ba7 (internal ID - do n"
+        },
+        {
+          "t": 7978,
+          "kind": "bash_use",
+          "id": "toolu_015xyzXFVn97ZUqRzYiKHgBF",
+          "messageId": "msg_011CfmxKnFX3UkvCMp6jBgaw",
+          "command": "node -e \"setTimeout(()=>{},25000)\""
+        },
+        {
+          "t": 8747,
+          "kind": "task_notification",
+          "task_id": "a0c5b0c993a6c3ba7",
+          "fields": [
+            "output_file",
+            "run_id",
+            "session_id",
+            "status",
+            "subtype",
+            "summary",
+            "task_id",
+            "tool_use_id",
+            "type",
+            "usage",
+            "uuid"
+          ],
+          "status": "completed",
+          "tool_use_id": "toolu_01RPRUdiTgkPbi6PkvwGrSZ7"
+        },
+        {
+          "t": 8747,
+          "kind": "background_tasks_changed",
+          "tasks": []
+        },
+        {
+          "t": 11847,
+          "kind": "task_started",
+          "task_id": "byp23atji",
+          "fields": [
+            "description",
+            "is_backgrounded",
+            "run_id",
+            "session_id",
+            "subtype",
+            "task_id",
+            "task_type",
+            "tool_use_id",
+            "type",
+            "uuid"
+          ],
+          "task_type": "local_bash",
+          "tool_use_id": "toolu_015xyzXFVn97ZUqRzYiKHgBF",
+          "is_backgrounded": false
+        },
+        {
+          "t": 34055,
+          "kind": "task_notification",
+          "task_id": "byp23atji",
+          "fields": [
+            "output_file",
+            "run_id",
+            "session_id",
+            "status",
+            "subtype",
+            "summary",
+            "task_id",
+            "tool_use_id",
+            "type",
+            "uuid"
+          ],
+          "status": "completed",
+          "tool_use_id": "toolu_015xyzXFVn97ZUqRzYiKHgBF"
+        },
+        {
+          "t": 34063,
+          "kind": "tool_result",
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        },
+        {
+          "t": 35460,
+          "kind": "result",
+          "subtype": "success",
+          "text": "FINAL: DONE",
+          "turns": 3
+        }
+      ],
+      "verdict": {
+        "initPerTurn": null,
+        "reportedInsideFirstTurn": true,
+        "initAfterFirstResult": false,
+        "resultTexts": [
+          "FINAL: DONE"
+        ],
+        "backgroundAgentCalls": 1,
+        "bashCalls": 1,
+        "hookCalls": 0,
+        "taskStarted": 2,
+        "isBackgrounded": [
+          true,
+          false
+        ],
+        "taskTypes": [
+          "local_agent",
+          "local_bash"
+        ],
+        "toolResultSaysBackground": true,
+        "firstResultBeforeNotification": false,
+        "initAfterNotification": false,
+        "results": 1
+      }
+    }
+  ]
+}

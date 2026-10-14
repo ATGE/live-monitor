@@ -1,0 +1,7 @@
+/* card-settings — owner: 1-card-settings. See SCR plan §1.2. */
+/* The rows' own layout lives in primitives.css (ui-setting-*); this only spaces them. */
+.tcs-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}

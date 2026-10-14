@@ -1,0 +1,195 @@
+/*
+ * Design tokens: the only source of CSS variables (type, radius,
+ * shadow, tones, surfaces, charts, control heights). Dark theme only: there is
+ * no theme switch. Imported before styles.css.
+ *
+ * Palette of direction "C refinada" (Panel de operaciones oscuro):
+ *  - Cyan (`--accent`, alias `--live`) marks only what is running right now and
+ *    the keyboard focus ring. Nothing at rest is cyan.
+ *  - Amber means "needs you" (answer, approve, decide), green "ready / OK",
+ *    red "error". Every tone ships with an icon; colour never travels alone.
+ *  - Depth comes from surface steps, not outlines: --bg < --col < --card <
+ *    --surface-3 < --surface-4. `--card-border` is a quiet hairline; inputs
+ *    and other controls use `--line-strong` (>= 3:1 against their surface).
+ *
+ * The first block is the :root of ui-shots/directions/C-panel-operaciones/
+ * tokens-C.css (dark part only); the second adds the tokens the artboards
+ * need on top. Tests read these names literally (server/test/web-tokens.test.mjs).
+ */
+:root {
+  color-scheme: dark;
+
+  /* ---- surfaces (existing names) ---- */
+  --bg: #0b0f14;              /* canvas */
+  --col: #11151c;             /* lanes, top bar, side panel: surface-1 */
+  --card: #171d24;            /* cards, dialogs: surface-2 */
+  --card-border: #232a33;     /* hairline only; no longer the default outline of everything */
+
+  /* ---- ink (existing names) ---- */
+  --text: #edf0f4;
+  --muted: #989fa9;
+
+  /* ---- tones (existing names) ---- */
+  --accent: #56ebf7;          /* the live signal; see the header note */
+  --green: #64de8c;
+  --red: #ff716b;
+  --amber: #ffc250;
+  --project: #e889f7;         /* the project chat: an object type, not a state */
+  --project-soft: #2f1932;
+  --project-border: #733b7c;
+  --side-width: min(620px, 46vw);
+
+  /* ---- type (existing names; the scale moves up one notch) ---- */
+  --fs-xs: 12px;
+  --fs-sm: 12.5px;
+  --fs-md: 13.5px;
+  --fs-base: 14.5px;
+  --fs-lg: 17px;
+  --fs-xl: 21px;
+  --font-sans: 'Inter Variable', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', Consolas, ui-monospace, monospace;
+
+  /* ---- radii (existing names): grow with the container ---- */
+  --r-xs: 4px;                /* bar data-ends, segments, kbd */
+  --r-sm: 6px;                /* buttons, inputs, chips */
+  --r-md: 10px;               /* cards */
+  --r-lg: 14px;               /* lanes, panels, popovers */
+  --r-pill: 999px;
+
+  /* ---- elevation (existing names) ---- */
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 4px 14px rgba(0, 0, 0, 0.42);
+  --shadow-3: 0 14px 36px rgba(0, 0, 0, 0.52);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-modal: 0 28px 80px rgba(0, 0, 0, 0.62), 0 0 0 1px rgba(255, 255, 255, 0.07);
+
+  /* ---- semantic tones: -bg, -border, -fg (existing names) ---- */
+  --ok-border: #255d38;
+  --ok-fg: var(--green);
+
+  --warn-bg: #312308;
+  --warn-border: #785715;
+  --warn-fg: var(--amber);
+
+  --danger-bg: #371816;
+  --danger-border: #8b3b38;
+  --danger-fg: var(--red);
+
+  /* `info` becomes the live family: `.pill-busy` is its main consumer. */
+  --info-bg: #02282e;
+  --info-border: #006471;
+  --info-fg: #b6f1f8;
+
+  /* Solid primary: deep cyan so white text keeps AA (btn.css writes #fff). */
+  --btn-primary-bg: #007994;
+  --btn-primary-bg-hover: #00809a;
+
+  /* ================= new tokens ================= */
+
+  /* surfaces by elevation (0-2 alias the existing names) */
+  --surface-3: #1f252e;       /* hover, raised card, input fill */
+  --surface-4: #272e38;       /* menus, popovers, tooltips */
+  --edge-hi: inset 0 1px 0 rgba(255, 255, 255, 0.045);   /* top light edge instead of a border */
+  --scrim: rgba(4, 6, 10, 0.62);
+
+  /* ink */
+  --text-2: #c2c8cf;          /* secondary text: card meta, axis titles */
+  --faint: #6c727b;           /* decorative only (never body text): separators, empty ticks */
+  --line: rgba(255, 255, 255, 0.07);   /* hairline divider */
+  --line-strong: #686f79;     /* input / toggle outline, >= 3:1 on card */
+
+  /* live signal */
+  --live: var(--accent);
+  --live-bg: #0f1a1f;         /* sub-agent block (the artboards' own value) */
+
+  /* violet: Claude sessions and model chips (identity, not state) */
+  --violet: #aa9cf7;
+
+  /* soft action fills (card buttons are tonal; one solid primary per view) */
+  --tint-live: rgba(86, 235, 247, 0.12);
+  --tint-warn: rgba(255, 194, 80, 0.14);
+  --tint-danger: rgba(255, 113, 107, 0.13);
+  --tint-neutral: rgba(255, 255, 255, 0.06);
+  --tint-neutral-hover: rgba(255, 255, 255, 0.1);
+
+  /* charts: categorical series (validated), de-emphasis, chrome */
+  --series-1: #00a5b9;        /* phases */
+  --series-muted: #737b86;    /* waits: dead time, de-emphasised */
+  --chart-axis: rgba(255, 255, 255, 0.16);
+
+  /* type, extended */
+  --fs-2xl: 26px;             /* KPI values */
+  --fs-3xl: 34px;             /* one hero figure per view, at most */
+
+  /* radius, extended */
+  --r-xl: 18px;               /* dialogs */
+
+  /* motion: only for live things and for answering an action */
+  --dur-pulse: 1.8s;
+
+  /* ================= extras from the artboards (plan section 2.1) ================= */
+
+  /* states and tints */
+  --tint-ok: rgba(100, 222, 140, 0.14);                 /* Waiting Approval pill */
+  --tint-violet: rgba(170, 156, 247, 0.18);             /* design-canvas chip */
+  --tint-project: rgba(232, 137, 247, 0.22);            /* project chip */
+
+  /* outlines */
+  --ring-warn: rgba(255, 194, 80, 0.45);
+  --ring-warn-strong: rgba(255, 194, 80, 0.55);
+  --warn-ring: rgba(255, 194, 80, 0.3);
+  --ring-danger: rgba(255, 113, 107, 0.34);
+
+  /* solid fills and the text on them */
+  --on-amber: #0b0f14;                                  /* text on solid amber */
+  --danger-solid: #c92f33;                              /* solid destructive confirm */
+  --amber-soft-fg: #fbcb71;                             /* sub-title of the "waiting for you" count */
+  --project-card: #2a2737;                              /* the project chat's card */
+
+  /* charts */
+  --done-cell: rgba(237, 240, 244, 0.52);               /* finished cell */
+  --idle-seg: rgba(237, 240, 244, 0.30);                /* queued stretch */
+
+  /* the pulsing dot */
+  --glow-dot: 0 0 0 3px rgba(86, 235, 247, 0.16), 0 0 7px rgba(86, 235, 247, 0.75);
+
+  /* type scale, extended */
+  --fs-2xs: 11.5px;
+  --fs-ui: 13px;
+  --fs-title-lg: 16px;
+
+  /* radii, extended */
+  --r-ctl: 8px;                                         /* segmented control, blocks */
+  --r-kpi: 12px;                                        /* KPI cell */
+
+  /* control heights */
+  --h-xs: 24px;
+  --h-sm: 28px;
+  --h-md: 34px;
+  --h-touch: 32px;                                      /* coarse pointer / phone */
+
+  /* segmented control: active segment (the menu redefines it) */
+  --seg-active-bg: var(--surface-4);
+
+  /* layout */
+  --col-w: 320px;                                       /* a board column */
+  --card-w: 304px;                                      /* a card inside it */
+}
+
+/* Form controls take the page font instead of the browser's own. Rules that
+   set `font` explicitly (all of styles.css) are later and win. */
+button, input, select, textarea { font-family: inherit; }
+
+/* Global keyboard focus ring. :where() keeps specificity at zero so any ring a
+   component already draws still wins. */
+:where(button, a, [role=tab], input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Containers with overflow:hidden would clip the outset ring: draw it inside. */
+:where(.chat-tab, .viewer-switch, .task-tab):focus-visible { outline-offset: -2px; }
+
+/* Tone colours for status icons (see Icon.jsx). */
+.icon-ok { color: var(--ok-fg); }
+.icon-warn { color: var(--warn-fg); }
+.icon-error { color: var(--danger-fg); }

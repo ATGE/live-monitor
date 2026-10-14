@@ -1,0 +1,285 @@
+/* board — owner: 1-board. See SCR plan §1.2. Prefix: bd- */
+
+.bd-wrap { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+/* The stage holds the scrolling lanes plus the fade and the "more" pill that
+   float over their right edge. */
+.bd-stage { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+.bd-main {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 14px 12px 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+}
+
+.bd-col {
+  flex: none;
+  width: var(--col-w);
+  /* Bounded by the lanes' own height, which the flex chain down from `.app`
+     already narrows by the strips above and below. */
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--col);
+  border-radius: var(--r-lg);
+}
+
+.bd-col-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 11px 12px 9px 13px;
+  color: var(--text-2);
+}
+.bd-col-error .bd-col-head > svg { color: var(--red); }
+.bd-col-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bd-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  box-sizing: border-box;
+  border-radius: var(--r-pill);
+  background: var(--tint-neutral);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.bd-hint {
+  margin-left: auto;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bd-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 0 8px 8px;
+  overflow-y: auto;
+}
+.bd-none { padding: 10px 0; color: var(--faint); text-align: center; }
+
+/* ---- an empty column folds into a 40px rail ---- */
+.bd-col.is-rail {
+  width: 40px;
+  align-self: stretch;
+  max-height: none;
+  background: color-mix(in srgb, var(--col) 55%, transparent);
+}
+.bd-rail {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  cursor: pointer;
+}
+.bd-rail:hover { color: var(--text); background: var(--tint-neutral-hover); }
+.bd-rail-name {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+}
+
+/* ---- more columns to the right ---- */
+.bd-fade {
+  position: absolute;
+  top: 14px;
+  right: 0;
+  bottom: 12px;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--bg) 80%);
+}
+.bd-more {
+  position: absolute;
+  right: 12px;
+  bottom: 16px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 10px 0 7px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--surface-4);
+  box-shadow: var(--shadow-pop);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.bd-more:hover { color: var(--text); }
+
+/* ---- the project chat card ---- */
+.bd-project {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 11px 12px 10px;
+  border-radius: var(--r-md);
+  background: var(--project-card);
+  box-shadow: var(--edge-hi), var(--shadow-1);
+  cursor: pointer;
+}
+.bd-project:hover { box-shadow: var(--edge-hi), var(--shadow-2); }
+.bd-project:focus-visible { outline: 2px solid var(--project); outline-offset: 1px; }
+.bd-project-head { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.bd-project-badge {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--tint-project);
+  color: var(--project);
+}
+.bd-project-title { color: var(--project); font-weight: 600; }
+.bd-project-base { font-family: var(--font-mono); font-size: var(--fs-2xs); color: var(--text-2); }
+.bd-project-chats { margin-left: auto; color: var(--muted); font-size: var(--fs-xs); white-space: nowrap; }
+.bd-project-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.bd-project-head-line {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.bd-project-live,
+.bd-project-ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: var(--fs-xs);
+}
+.bd-project-live > span:last-child,
+.bd-project-ask > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bd-project-ask { color: var(--amber); }
+
+/* ---- empty board ---- */
+.bd-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  color: var(--muted);
+  text-align: center;
+}
+.bd-empty p { margin: 0; font-size: var(--fs-base); }
+
+/* ---- first load: ghost columns ---- */
+.bd-skeleton { flex: 1; overflow: hidden; }
+.bd-ghost { display: block; border-radius: var(--r-xs); background: var(--tint-neutral); animation: bd-pulse 1.6s ease-in-out infinite; }
+.bd-ghost-icon { width: 14px; height: 14px; }
+.bd-ghost-title { width: 96px; height: 12px; }
+.bd-ghost-card {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 14px 12px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  box-shadow: var(--edge-hi), var(--shadow-1);
+}
+.bd-ghost-line { height: 10px; width: 100%; }
+.bd-ghost-line.is-short { width: 38%; }
+.bd-ghost-line.is-mid { width: 64%; }
+@keyframes bd-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* ---- phone: one lane at a time, picked from a row of chips ---- */
+.bd-nav { display: none; }
+
+@media (max-width: 780px) {
+  .bd-nav {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    padding: 10px 10px 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    scroll-padding-inline: 10px;
+  }
+  .bd-tab {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: var(--r-pill);
+    background: var(--tint-neutral);
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--fs-sm);
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .bd-tab b { font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .bd-tab[aria-current='true'] { background: var(--text); color: var(--bg); font-weight: 500; }
+  .bd-tab[aria-current='true'] b { color: var(--bg); }
+
+  .bd-main {
+    gap: 0;
+    padding: 10px 0 0;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+  }
+  /* Each lane is exactly one screen wide, so its offset is a multiple of it. */
+  .bd-col,
+  .bd-col.is-ghost {
+    flex: 0 0 100%;
+    width: 100%;
+    max-height: none;
+    padding: 0 10px;
+    box-sizing: border-box;
+    background: none;
+    border-radius: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    align-self: stretch;
+  }
+  .bd-col-head { padding: 4px 4px 8px; }
+  .bd-cards { padding: 0 0 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bd-ghost { animation: none; }
+}

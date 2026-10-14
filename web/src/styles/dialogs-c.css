@@ -1,0 +1,84 @@
+/* dialogs-c — owner: 1-dialogs-c. See SCR plan §1.2.
+   Models, Metrics, Create task and Plan review. Dialog chrome comes from dialogs.css;
+   this file only dresses what goes inside it, with tokens and no hex. */
+
+/* --- shared bits ------------------------------------------------------- */
+.dlg-c-note { margin: 0 0 12px; color: var(--muted); font-size: var(--fs-sm); }
+.dlg-c-error {
+  display: flex; align-items: flex-start; gap: 6px; margin: 10px 0 0; padding: 8px 10px;
+  border-radius: var(--r-ctl); background: var(--tint-danger); color: var(--red); font-size: var(--fs-sm);
+  overflow-wrap: anywhere;
+}
+.dlg-c-error .icon, .dlg-c-error svg { flex: none; margin-top: 2px; }
+.dlg-c-check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-ui); color: var(--text-2); cursor: pointer; }
+.dlg-c-check input { accent-color: var(--accent); }
+.dlg-c-check input:disabled { cursor: not-allowed; }
+.dlg-c-notice { max-width: none; display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+.dlg-c-notice p { margin: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+
+/* --- Models ------------------------------------------------------------ */
+.models-dialog select, .models-dialog input[type='number'] {
+  height: var(--h-sm); font: inherit; font-size: var(--fs-sm); color: var(--text);
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: var(--r-sm); padding: 0 8px;
+}
+.models-dialog select:focus-visible, .models-dialog input[type='number']:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+.models-dialog select:disabled, .models-dialog input:disabled { opacity: 0.5; cursor: not-allowed; }
+.models-grid { display: grid; gap: 8px; }
+.models-row { display: grid; grid-template-columns: 7.5em 1fr 7em auto; gap: 6px; align-items: center; }
+.models-role { font-weight: 600; font-size: var(--fs-sm); color: var(--text-2); }
+.models-row .models-role + select + select, .models-row input[type='number'] { min-width: 0; width: 100%; }
+.models-extra { margin-top: 12px; }
+@media (max-width: 480px) {
+  .models-row { grid-template-columns: 1fr 6.5em auto; }
+  .models-role { grid-column: 1 / -1; }
+}
+@media (pointer: coarse) {
+  .models-dialog select, .models-dialog input[type='number'] { height: var(--h-md); }
+}
+
+/* --- Metrics: empty state ---------------------------------------------- */
+.dlg-c-empty { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 28px 12px; text-align: center; }
+.dlg-c-empty-chart { width: min(240px, 100%); height: auto; fill: var(--series-muted); opacity: 0.28; }
+.dlg-c-empty-text { margin: 0; max-width: 36ch; color: var(--muted); font-size: var(--fs-md); }
+.metrics-dialog table { font-variant-numeric: tabular-nums; }
+.metrics-dialog th { color: var(--muted); font-weight: 600; font-size: var(--fs-xs); }
+.metrics-dialog tbody tr + tr td { border-top: 1px solid var(--line); }
+.metrics-dialog h4 { color: var(--text-2); font-size: var(--fs-ui); }
+
+/* --- Create task ------------------------------------------------------- */
+.dlg-c-create label { display: block; margin: 12px 0 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.dlg-c-create input[type='text'], .dlg-c-create textarea {
+  background: var(--surface-3); border: 1px solid var(--line); border-radius: var(--r-ctl); color: var(--text);
+}
+.dlg-c-create input:focus-visible, .dlg-c-create textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.dlg-c-create input:disabled, .dlg-c-create textarea:disabled { opacity: 0.6; cursor: not-allowed; }
+.dlg-c-create .spinner { margin-right: 4px; }
+
+/* --- Plan review ------------------------------------------------------- */
+.plan-review .plan-text { background: var(--surface-3); border-color: var(--line); border-radius: var(--r-ctl); }
+.plan-review .plan-changes { border-radius: var(--r-ctl); }
+.plan-review .plan-tasks-head { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.plan-review .plan-lane { background: var(--col); border: 1px solid var(--line); border-radius: var(--r-kpi); }
+.plan-review .plan-lane-head { font-size: var(--fs-xs); color: var(--muted); }
+.plan-review .plan-lane-par { color: var(--amber); }
+.plan-review .plan-task.plan-lane-card {
+  background: var(--card); border: 1px solid var(--card-border); border-radius: var(--r-ctl);
+}
+.plan-review .plan-task b { color: var(--live); font-family: var(--font-mono); }
+.plan-review .plan-lane-card.status-running, .plan-review .plan-lane-card.status-checking { border-color: var(--live); }
+.plan-review .plan-lane-card.status-done { border-color: var(--green); }
+.plan-review .plan-lane-card.status-failed, .plan-review .plan-lane-card.status-asking { border-color: var(--ring-danger); }
+.plan-review .plan-lane-top input { accent-color: var(--accent); }
+.plan-review .plan-lane-top input:disabled { cursor: not-allowed; }
+.plan-review .plan-task-meta { font-variant-numeric: tabular-nums; }
+.plan-review .plan-failure { background: var(--tint-danger); border-radius: var(--r-sm); }
+.plan-review .plan-note { color: var(--amber); }
+.plan-review .plan-retrying { color: var(--amber); }
+.plan-review .plan-lane-arrow { color: var(--faint); }
+.plan-review .plan-feedback { background: var(--surface-3); border: 1px solid var(--line); border-radius: var(--r-ctl); color: var(--text); }
+.plan-review .plan-feedback:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (prefers-reduced-motion: reduce) {
+  .plan-review .status-running .plan-glyph, .plan-review .status-checking .plan-glyph { animation: none; }
+}

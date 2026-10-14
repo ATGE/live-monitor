@@ -1,0 +1,1 @@
+**Windows:** no crees con heredoc (`cat <<EOF`) ficheros cuyo contenido lleve comillas simples (`'`) o barras invertidas: bash responde «unexpected EOF while looking for matching `'`» y el fichero sale mutilado o no sale. Escríbelos con la herramienta Write. 

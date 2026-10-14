@@ -1,0 +1,24 @@
+node_modules/
+web/dist/
+server/data/
+.hfs-monitor.pid
+*.log
+.hfs-monitor.upgrading
+.hfs-monitor.restart.*
+
+# Machine-local Claude Code context: paths, permissions and hooks of THIS
+# machine. Never shared -- the runner pulls this repo with `git pull --ff-only`,
+# and the CLI appends a rule to settings.local.json on every approved permission.
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/state/
+.claude/debug/
+
+# Sessions added by hand on this machine for the decisions extractor.
+tools/decisions/sessions.local.json
+
+# Secrets and per-machine overrides merged over config.json at load time.
+config.local.json
+
+# Scratch directory of tools/prompt-baseline freeze.
+server/test/fixtures/prompt-baseline/.freeze-tmp/

@@ -1,0 +1,133 @@
+/* plugins — owner: 1-plugins. Prefix `pl-`. See SCR plan §1.2. */
+
+/* ---- Chips in the bar: only while something is missing ------------------ */
+.pl-chips { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+
+.pl-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 30px;
+  padding: 0 3px 0 9px;
+  box-sizing: border-box;
+  border-radius: var(--r-ctl);
+  font-size: var(--fs-sm);
+  color: var(--text);
+  white-space: nowrap;
+}
+.pl-chip-missing { background: var(--tint-warn); box-shadow: inset 0 0 0 1px var(--warn-ring); }
+.pl-chip-busy { padding-right: 11px; background: var(--tint-live); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--live) 22%, transparent); color: var(--info-fg); }
+.pl-chip-failed { background: var(--tint-danger); box-shadow: inset 0 0 0 1px var(--ring-danger); }
+/* An error with no button (the install request itself failed) has no 3px for a button to sit in. */
+.pl-chip-failed:not(:has(.pl-chip-btn)) { padding-right: 11px; }
+
+.pl-chip-icon { flex: none; font-size: 14px; }
+.pl-chip-missing .pl-chip-icon { color: var(--amber); }
+.pl-chip-busy .pl-chip-icon { color: var(--live); }
+.pl-chip-failed .pl-chip-icon { color: var(--red); }
+.pl-chip-machine { max-width: 28ch; overflow: hidden; text-overflow: ellipsis; }
+/* The machine and its sentence read as one run of text: cancel the flex gap between them. */
+.pl-chip-text { margin-left: -7px; }
+
+.pl-chip-btn {
+  display: inline-flex;
+  align-items: center;
+  height: var(--h-xs);
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: 600 var(--fs-xs)/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pl-chip-missing .pl-chip-btn { background: color-mix(in srgb, var(--amber) 20%, transparent); box-shadow: inset 0 0 0 1px var(--ring-warn); color: var(--amber); }
+.pl-chip-failed .pl-chip-btn { background: var(--tint-neutral-hover); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); color: var(--text); }
+.pl-chip-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.pl-spin { animation: pl-spin 1s linear infinite; }
+@keyframes pl-spin { to { transform: rotate(360deg); } }
+
+/* ---- The «Plugins requeridos» dialog ----------------------------------- */
+.pl-caption { margin: 0; font-size: var(--fs-ui); line-height: 1.5; color: var(--text-2); }
+.pl-body { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+
+.pl-note { display: flex; align-items: flex-start; gap: 7px; margin: 0; font-size: var(--fs-sm); line-height: 1.45; color: var(--text-2); }
+.pl-note-icon { flex: none; margin-top: 2px; font-size: 14px; color: var(--live); }
+.pl-note-error { color: var(--red); }
+.pl-note-error .pl-note-icon { color: var(--red); }
+
+.pl-loading { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.pl-skeleton {
+  display: block;
+  height: var(--h-md);
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--text) 5%, transparent) 0, color-mix(in srgb, var(--text) 10%, transparent) 45%, color-mix(in srgb, var(--text) 5%, transparent) 90%);
+}
+
+.pl-empty { margin: 0; font-size: var(--fs-sm); color: var(--text-2); }
+
+.pl-list { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pl-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 0 6px 0 12px;
+  box-sizing: border-box;
+  border-radius: var(--r-md);
+  background: var(--col);
+}
+.pl-row-icon { flex: none; font-size: 14px; color: var(--muted); }
+.pl-row-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 400 var(--fs-sm)/1.3 var(--font-mono);
+  color: var(--text);
+}
+
+.pl-add-row { display: flex; gap: 8px; }
+.pl-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--h-md);
+  padding: 0 11px;
+  box-sizing: border-box;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--text);
+  font: 400 var(--fs-sm)/1 var(--font-mono);
+}
+.pl-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pl-input[aria-invalid="true"] { box-shadow: inset 0 0 0 1.5px var(--red); }
+.pl-add .pl-note { margin-top: 8px; }
+.pl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pl-spin { animation: none; }
+}
+
+/* ---- Phone: chips shrink to icon + machine; the sentence stays in `title` */
+@media (max-width: 780px) {
+  .pl-chip-text { display: none; }
+  .pl-chip-machine { max-width: 14ch; }
+  /* One row in the 52px bar; the install button keeps its words and a 28h target. */
+  .pl-chips { flex-wrap: nowrap; }
+  .pl-chip { flex: none; }
+  .pl-chip-btn { height: var(--h-sm); }
+}

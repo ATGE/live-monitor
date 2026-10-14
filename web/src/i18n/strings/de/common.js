@@ -1,0 +1,15 @@
+export default {
+  cancel: 'Abbrechen',
+  close: 'Schließen',
+  accept: 'OK',
+  save: 'Speichern',
+  delete: 'Löschen',
+  retry: 'Erneut versuchen',
+  loading: 'Wird geladen…',
+  yes: 'Ja',
+  no: 'Nein',
+  none: 'Keine',
+  back: 'Zurück',
+  task: { one: '{n} Aufgabe', other: '{n} Aufgaben' },
+  languageNames: { es: 'Español', en: 'English', fr: 'Français', de: 'Deutsch' },
+};

@@ -1,0 +1,1 @@
+**En esta máquina `/tmp` es un disco en RAM.** Nada grande va ahí: ni `target/` ni `node_modules/`, ni binarios compilados, ni los datos de un servidor que levantes, ni volcados. Usa `$HOME` (por ejemplo `$HOME/tmp/<lo-tuyo>`) y bórralo al terminar. Llenar `/tmp` aquí no da «disco lleno»: agota la memoria y el kernel empieza a matar procesos, el tuyo incluido. 

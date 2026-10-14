@@ -1,0 +1,63 @@
+{
+  "github": {
+    "repo": "HeliosSoftware/hfs",
+    "assignee": "<your-github-login>"
+  },
+  "e2e": {
+    "relativeCwd": "crates/ui/e2e",
+    "installCommand": "npm install",
+    "testCommand": "npm test -- --reporter=list",
+    "workers": 1,
+    "timeoutMinutes": 60,
+    "prepareCommand": "cargo build -p helios-hfs --features ui --release",
+    "prepareTimeoutMinutes": 90,
+    "portEnv": "HFS_E2E_PORT",
+    "portOffsets": [
+      0,
+      1,
+      10,
+      11,
+      20,
+      21
+    ],
+    "portRange": {
+      "from": 18300,
+      "to": 18900
+    },
+    "env": {
+      "CI": "1"
+    }
+  },
+  "stack": {
+    "profile": "release",
+    "buildCommand": "cargo build --bin hfs --bin hts",
+    "buildTimeoutMinutes": 90,
+    "healthTimeoutMinutes": 5,
+    "portRange": {
+      "from": 18080,
+      "to": 18200
+    },
+    "seedHtsFromMain": "data/hts.db",
+    "services": {
+      "hfs": {
+        "label": "HFS",
+        "portEnv": "HFS_SERVER_PORT",
+        "healthPath": "/metadata",
+        "env": {
+          "HFS_SERVER_HOST": "0.0.0.0"
+        },
+        "binName": "hfs"
+      },
+      "hts": {
+        "label": "HTS",
+        "portEnv": "HTS_SERVER_PORT",
+        "healthPath": "/metadata",
+        "env": {
+          "HTS_SERVER_HOST": "0.0.0.0",
+          "HTS_UI_ENABLED": "true"
+        },
+        "binName": "hts"
+      }
+    }
+  }
+}

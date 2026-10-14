@@ -1,0 +1,20 @@
+{
+  "_comment": "Copy to config.local.json (gitignored) beside config.json and fill in. It is deep-merged over config.json at load time; arrays and scalars replace. Never commit the real file.",
+  "project": {
+    "repoPath": "C:/path/to/your/checkout",
+    "worktreeRoot": "C:/path/to/your/worktrees"
+  },
+  "access": {
+    "token": "generate with: node -e \"console.log(require('crypto').randomBytes(24).toString('hex'))\"",
+    "trustedTailscaleUsers": ["you@example.com"]
+  },
+  "machines": {
+    "my-runner": {
+      "kind": "runner",
+      "url": "http://<tailscale-ip>:7421",
+      "token": "the token in ~/.hfs-monitor/runner.json on that machine",
+      "repoPath": "/home/you/src/project",
+      "worktreeRoot": "/home/you/src/project-wt"
+    }
+  }
+}

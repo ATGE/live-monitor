@@ -1,0 +1,15 @@
+/* The rows inside the board's plan bubble (`scope: 'task'`): one bubble per plan
+   version, patched in place from planning to its decision. The bubble itself
+   (card, amber stripe, header) is `.cb-board` in styles/chat-bubbles.css. */
+.task-plan-planning {
+  display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--muted);
+}
+.task-plan-progress {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-family: var(--font-mono); font-size: var(--fs-sm);
+}
+.task-plan-lanes { color: var(--amber); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.task-plan-error {
+  padding: 6px 8px; font-size: var(--fs-sm); white-space: pre-wrap; overflow-wrap: anywhere;
+  background: var(--tint-danger); border-radius: var(--r-sm); color: var(--text);
+}

@@ -1,0 +1,77 @@
+/* chat-bubbles — owner: 1-chat-bubbles. See SCR plan §1.2. */
+
+.cb-msg { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cb-msg--user { align-items: flex-end; }
+
+.cb-who { font-size: var(--fs-xs); font-weight: 500; color: var(--muted); }
+.cb-time { margin-left: 6px; font-weight: 400; font-variant-numeric: tabular-nums; }
+
+/* You: a neutral bubble. Cyan is for what is live, never for a message. */
+.cb-user {
+  max-width: 88%; box-sizing: border-box; padding: 9px 12px;
+  border-radius: 12px 12px 4px 12px; background: var(--surface-3); color: var(--text);
+  font-size: var(--fs-md); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+/* Claude: no bubble, the text sits on the column. */
+.cb-claude { font-size: var(--fs-md); line-height: 1.55; color: var(--text); overflow-wrap: anywhere; }
+.cb-claude .md > :first-child { margin-top: 0; }
+.cb-claude .md > :last-child { margin-bottom: 0; }
+.cb-board-only { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.cb-attached { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; font-size: var(--fs-sm); color: var(--text-2); }
+.cb-delivery { margin-top: 5px; font-size: var(--fs-xs); color: var(--muted); font-style: italic; }
+
+/* The board's questions and plans. */
+.cb-board {
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
+  padding: 10px 12px; border-radius: var(--r-md);
+  background: var(--card); box-shadow: var(--edge-hi); font-size: var(--fs-sm);
+}
+.cb-board--wait {
+  padding-left: 13px;
+  background: color-mix(in srgb, var(--amber) 8%, var(--card));
+  box-shadow: var(--edge-hi), inset 3px 0 0 var(--amber);
+}
+.cb-board--fail { box-shadow: var(--edge-hi), inset 3px 0 0 var(--red); }
+.cb-board--fail .cb-status { color: var(--red); }
+
+.cb-head { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-2); }
+.cb-head > svg { flex: none; width: 14px; height: 14px; color: var(--muted); }
+.cb-board--wait .cb-head { color: var(--text); font-size: var(--fs-ui); }
+.cb-board--wait .cb-head > svg { width: 15px; height: 15px; color: var(--amber); }
+.cb-board--fail .cb-head > svg { color: var(--red); }
+.cb-title { flex: 1; min-width: 0; }
+.cb-title b { font-weight: 600; }
+.cb-status { color: var(--muted); }
+.cb-board--wait .cb-status { color: inherit; }
+.cb-action { flex: none; margin-left: auto; }
+
+.cb-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px; min-width: 0; color: var(--text-2); }
+.cb-line > svg { flex: none; width: 13px; height: 13px; }
+.cb-line b { font-weight: 600; color: var(--text); }
+.cb-line--answer { flex-wrap: nowrap; color: var(--text); }
+.cb-line--answer > svg { width: 14px; height: 14px; }
+.cb-line--quiet { color: var(--muted); }
+.cb-warn { color: var(--amber); }
+.cb-ok { color: var(--green); }
+.cb-ellipsis { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cb-progress { font-family: var(--font-mono); font-size: var(--fs-sm); color: var(--text-2); overflow-wrap: anywhere; }
+
+/* Thinking: the one live thing in the thread, so its dot is cyan. */
+.cb-thinking {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: var(--r-md);
+  background: var(--card); box-shadow: var(--edge-hi); color: var(--text-2); font-size: var(--fs-sm);
+}
+.cb-activity { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.cb-stop { margin-left: auto; }
+
+/* The day label: a hairline with the date over it. The band itself (sticky,
+   column background) stays in styles.css as `.messages > .day-divider`. */
+.cb-day { display: flex; align-items: center; gap: 10px; }
+.cb-day::before, .cb-day::after { content: ''; flex: 1; height: 1px; background: var(--line); }
+.cb-day span { padding: 0; border: 0; background: none; font-size: var(--fs-xs); color: var(--muted); }
+
+@media (max-width: 780px) {
+  .cb-user { max-width: 92%; }
+}

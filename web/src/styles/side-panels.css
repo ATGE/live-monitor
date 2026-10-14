@@ -1,0 +1,251 @@
+/* side-panels — owner: 1-side-panels. See SCR plan §1.2.
+ *
+ * The side column's shell (`.side`, `.subpanel`, its header, the resizer and
+ * the edge toggle) and the Browser QA, Demo, Log, Timeline and change-request
+ * panels. The shell keeps its class names (App.jsx and the chat panel use
+ * them); the rules below restate them with C's tokens and, loading after
+ * styles.css, win on source order at equal specificity. The panels' own
+ * markup is new (`sp-`). The chat (`.subpanel-chat`) is restyled on top of
+ * this by chat.css, which loads later.
+ */
+
+/* ---------- shell ---------- */
+
+.side {
+  background: var(--col);
+  border-left: none;
+  /* The hairline is an inset ring rather than a border: it takes no width. */
+  box-shadow: inset 1px 0 0 var(--line), var(--shadow-3);
+}
+
+.subpanel { border-bottom: 1px solid var(--line); }
+.subpanel:last-child { border-bottom: none; }
+
+.subpanel > header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px 10px 14px;
+  background: var(--col);
+}
+.subpanel h3 {
+  display: flex; align-items: center; gap: 7px; min-width: 0;
+  margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.subpanel h3 > svg { color: var(--text-2); flex: none; }
+.sp-actions { display: flex; gap: 6px; align-items: center; flex: none; }
+
+.panel-sub {
+  margin: 6px 14px 0;
+  color: var(--muted); font-size: var(--fs-sm);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.panel-sub code { font-family: var(--font-mono); color: var(--text-2); }
+
+.subpanel-body { flex: 1; overflow-y: auto; padding: 10px 14px; }
+
+/* The resizer and the edge toggle: tokens, the same footprint. */
+.side-resizer:hover { background: var(--live); opacity: 0.5; }
+.side-resizer:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.side-toggle {
+  background: var(--col); color: var(--muted);
+  border: 1px solid var(--line-strong); border-right: none;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+.side-toggle:hover { color: var(--text); background: var(--surface-3); }
+.side-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---------- notes, hints and errors inside a panel ---------- */
+
+.sp-note {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 10px; padding: 8px 10px;
+  border-radius: var(--r-ctl); background: var(--tint-warn);
+  box-shadow: inset 0 0 0 1px var(--ring-warn);
+  font-size: var(--fs-sm); color: var(--amber);
+}
+.sp-note > span { flex: 1 1 200px; min-width: 0; }
+.sp-hint {
+  display: flex; flex-wrap: wrap; gap: 4px 10px; margin: 8px 0 0;
+  font-size: var(--fs-sm); color: var(--muted);
+}
+.sp-hint a { color: var(--green); text-decoration: none; }
+.sp-hint a:hover { text-decoration: underline; }
+.sp-error { margin: 0 0 8px; font-size: var(--fs-sm); color: var(--red); }
+
+/* ---------- log ---------- */
+
+.sp-log { padding: 10px 14px; font: var(--fs-xs)/1.5 var(--font-mono); }
+.log-line { display: flex; gap: 8px; }
+.log-line .ts { color: var(--faint); flex: none; font-variant-numeric: tabular-nums; }
+.log-line .phase { color: var(--live); flex: none; min-width: 60px; }
+.log-line .phase-error, .log-line .phase-estado, .log-line .phase-stack { color: var(--amber); }
+.log-line .text { white-space: pre-wrap; word-break: break-word; }
+
+/* ---------- timeline (the bars live in components/timings.css) ---------- */
+
+.sp-timeline-summary {
+  padding: 8px 14px 0; font-size: var(--fs-sm); color: var(--muted); opacity: 1;
+  font-variant-numeric: tabular-nums;
+}
+.sp-timeline { padding: 8px 14px 12px; }
+.sp-timeline .timeline-empty { color: var(--muted); opacity: 1; padding: 12px 0; }
+
+/* ---------- change request ---------- */
+
+.cr-drafts {
+  margin-bottom: 18px; padding: 10px 12px;
+  border-radius: var(--r-md); background: var(--live-bg);
+  box-shadow: inset 0 0 0 1px var(--info-border);
+}
+.cr-drafts h4 {
+  display: flex; align-items: center; gap: 7px;
+  margin: 0 0 4px; font-size: var(--fs-md); color: var(--info-fg);
+}
+.cr-drafts .muted { margin: 0 0 10px; font-size: var(--fs-sm); }
+.cr-draft { border-left: 2px solid var(--info-border); padding: 2px 0 2px 10px; margin-bottom: 10px; }
+.cr-draft-actions {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px;
+  border-top: 1px solid var(--line); padding-top: 10px;
+}
+.cr-comments-title { margin: 18px 0 8px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
+.cr-comment { border-left: 2px solid var(--line-strong); padding: 2px 0 2px 10px; margin-bottom: 12px; }
+.cr-comment-where {
+  display: inline-block; margin-bottom: 2px;
+  font: var(--fs-sm) var(--font-mono); color: var(--info-fg); text-decoration: none;
+}
+.cr-comment-where:hover { text-decoration: underline; }
+
+/* ---------- Browser QA ---------- */
+
+.qa-verdict {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  margin: 4px 0 10px; font-weight: 600;
+}
+.qa-verdict > svg { align-self: center; }
+.qa-verdict.qa-pass { color: var(--green); }
+.qa-verdict.qa-fail { color: var(--red); }
+.qa-verdict.qa-unverified { color: var(--amber); }
+.qa-verdict .qa-summary { flex-basis: 100%; font-weight: 400; color: var(--text); font-size: var(--fs-sm); }
+
+.qa-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.qa-step {
+  padding: 8px 10px; border-radius: var(--r-md);
+  background: var(--card); box-shadow: inset 0 0 0 1px var(--card-border);
+}
+/* The left edge is the verdict's colour; the icon in the head repeats it, so
+   the state is never colour alone. */
+.qa-step.qa-pass { box-shadow: inset 3px 0 0 var(--green), inset 0 0 0 1px var(--card-border); }
+.qa-step.qa-fail { box-shadow: inset 3px 0 0 var(--red), inset 0 0 0 1px var(--card-border); }
+.qa-step.qa-unverified { box-shadow: inset 3px 0 0 var(--amber), inset 0 0 0 1px var(--card-border); }
+.qa-scenario {
+  list-style: none; padding: 8px 10px; border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--card-border);
+}
+.qa-scenario-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.qa-scenario-title { font-weight: 600; }
+.qa-scenario-status { display: inline-flex; font-size: var(--fs-md); }
+.qa-scenario-status.qa-pass { color: var(--green); }
+.qa-scenario-status.qa-fail { color: var(--red); }
+.qa-scenario-status.qa-unverified { color: var(--amber); }
+.qa-scenario > .qa-steps { padding-left: 12px; }
+.qa-step-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qa-step.qa-pass .qa-status { color: var(--green); }
+.qa-step.qa-fail .qa-status { color: var(--red); }
+.qa-step.qa-unverified .qa-status { color: var(--amber); }
+.qa-status { display: inline-flex; }
+.qa-step-head code { font: var(--fs-xs) var(--font-mono); color: var(--info-fg); }
+.qa-step-head .qa-what { font-weight: 600; }
+.qa-step-head .tag {
+  padding: 0 7px; border-radius: var(--r-pill);
+  background: var(--tint-warn); color: var(--amber); font-size: var(--fs-xs);
+}
+.qa-expect { margin-top: 3px; font-size: var(--fs-sm); color: var(--muted); }
+.qa-note { margin-top: 4px; font-size: var(--fs-sm); white-space: pre-wrap; }
+.qa-evidence { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.qa-shot img {
+  width: 150px; height: 94px; object-fit: cover; object-position: top;
+  border-radius: var(--r-xs); background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--card-border);
+}
+.qa-shot:hover img, .qa-shot:focus-visible img { outline: 2px solid var(--accent); outline-offset: -2px; }
+.qa-video { margin: 0; flex-basis: 100%; }
+.qa-video video, .qa-loose video { width: 100%; max-height: 360px; background: var(--bg); border-radius: var(--r-sm); }
+.qa-video figcaption { margin-top: 3px; font-size: var(--fs-xs); color: var(--muted); }
+.qa-cuts { color: var(--amber); }
+.qa-loose { margin-top: 12px; font-size: var(--fs-sm); }
+.qa-loose summary { cursor: pointer; color: var(--muted); }
+.qa-loose summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- the lens: the evidence at a size you can read ---------- */
+
+.qa-video-frame { position: relative; }
+/* Inline would leave the line box's descender gap under the player, and the
+   hot zone's 44 px would stop short of the controls it must leave alone. */
+.qa-video-frame video { display: block; }
+/* The hot zone stops short of the native controls, which stay the video's. */
+.qa-hot { position: absolute; left: 0; right: 0; top: 0; bottom: 44px; cursor: zoom-in; }
+/* Taps must reach the <video> on every touch screen (its native play button
+   sits in the centre): the phone fix, whatever the width. */
+@media (hover: none) and (pointer: coarse) {
+  .qa-hot { pointer-events: none; }
+}
+/* The zoom button lives in the bar under the video, outside it, and shows only
+   on wide touch screens; phones use the player's own fullscreen. */
+.qa-zoom { display: none; }
+@media (hover: none) and (pointer: coarse) and (min-width: 781px) {
+  .qa-zoom {
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    min-width: 40px; min-height: 40px; padding: 0 12px;
+    font: inherit; font-size: var(--fs-ui); font-weight: 500; color: var(--text);
+    background: var(--tint-neutral); border: none; border-radius: var(--r-sm);
+    cursor: pointer;
+  }
+  .qa-zoom:hover { background: var(--tint-neutral-hover); }
+  .qa-zoom:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+}
+.qa-video-bar { display: flex; align-items: center; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+
+/* The speed switch is the shared segmented control; this only sets where it sits. */
+.sp-speed { flex: none; }
+
+/* Portalled to <body>: `.side` is a stacking context and would cap this at 10.
+   The ladder it belongs to: this 30 · dialogs 40 · the file viewer 45. */
+.qa-preview {
+  position: fixed; z-index: 30;
+  display: flex; flex-direction: column;
+  max-width: calc(100vw - 16px);
+  padding: 6px; border-radius: var(--r-lg);
+  background: var(--col); border: none;
+  box-shadow: var(--shadow-modal), inset 0 0 0 1px var(--info-border);
+}
+.qa-preview-body { border-radius: var(--r-sm); background: var(--bg); }
+/* Not `object-fit: contain`: a 1280×6000 capture would come out a stamp. It
+   keeps its width and is scrolled through; `contain` stops the wheel from
+   chaining to the panel, which would close the view under the pointer. */
+.qa-preview-body.is-image { max-height: 80vh; overflow: auto; overscroll-behavior: contain; }
+.qa-preview-body.is-image img { display: block; max-width: min(60vw, 900px); width: auto; height: auto; }
+.qa-preview-body.is-video { overflow: hidden; }
+.qa-preview-body.is-video video { display: block; width: min(60vw, 960px); max-height: 70vh; background: var(--bg); }
+.qa-preview-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 2px 0; font-size: var(--fs-sm); color: var(--muted);
+}
+.qa-preview-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- phone: the panel is the whole screen ---------- */
+
+@media (max-width: 780px) {
+  /* A 44px thumb for the ✕ of each panel: the hit box grows and gives the
+     height straight back as margin, so the header row stays as it was. */
+  .subpanel > header .btn-close {
+    width: 44px; min-width: 44px; height: 44px; min-height: 44px;
+    margin: -8px -8px -8px 0; font-size: var(--fs-lg);
+  }
+  .qa-preview-body.is-image img { max-width: min(92vw, 900px); }
+  .qa-preview-body.is-video video { width: min(92vw, 960px); }
+  /* vh then dvh: the visible height of a phone, not the one with the URL bar away. */
+  .qa-preview-body.is-image { max-height: 80vh; max-height: 80dvh; }
+  .qa-preview-body.is-video video { max-height: 70vh; max-height: 70dvh; }
+  .subpanel { min-width: 0; }
+  .subpanel img, .subpanel video, .subpanel pre { max-width: 100%; }
+}

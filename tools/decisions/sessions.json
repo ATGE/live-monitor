@@ -1,0 +1,12 @@
+{
+  "sessions": [
+    {
+      "id": "00000000-0000-0000-0000-000000000000",
+      "label": "example session",
+      "transcript": "C:/Users/you/.claude/projects/example/session.jsonl"
+    }
+  ],
+  "roots": [
+    "C:/Users/you/src/project"
+  ]
+}

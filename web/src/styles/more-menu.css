@@ -1,0 +1,48 @@
+/* Topbar «···» menu (prefix mm-). The panel itself is the shared .ui-popover. */
+.mm-trigger { position: relative; }
+.mm-pending {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 2px var(--bg);
+}
+.mm-panel { min-width: 248px; padding: 6px; }
+.mm-list { display: flex; flex-direction: column; gap: 2px; }
+.mm-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 34px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--r-ctl);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-ui);
+  text-align: left;
+  cursor: pointer;
+}
+.mm-item:hover:not(:disabled) { background: var(--tint-neutral-hover); }
+.mm-item:disabled { opacity: 0.55; cursor: default; }
+.mm-icon { display: inline-flex; flex: none; color: var(--muted); }
+.mm-text { display: flex; flex-direction: column; min-width: 0; }
+.mm-sub { font-size: var(--fs-xs); color: var(--muted); white-space: normal; }
+.mm-sub-warn { color: var(--amber); }
+.mm-sub-error { color: var(--red); }
+/* Order: Importar, Buscar, separator, then Reiniciar (portalled in last). */
+.mm-sep { order: 0; height: 1px; margin: 4px 6px; background: var(--line); }
+.mm-spin { animation: mm-spin 1.2s linear infinite; }
+@keyframes mm-spin { to { transform: rotate(360deg); } }
+
+@media (max-width: 780px) {
+  .mm-item { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .mm-spin { animation: none; }
+}

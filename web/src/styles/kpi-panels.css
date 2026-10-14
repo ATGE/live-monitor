@@ -1,0 +1,101 @@
+/* kpi-panels — owner: 1-kpi-panels. See SCR plan §1.2. */
+
+/* The Popover brings surface, radius and shadow; the panel brings padding and width. */
+.kp-panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px 8px;
+  width: 352px;
+  max-width: 100%;
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+.kp-panel-session { width: 312px; }
+.kp-panel-median { width: 312px; }
+
+.kp-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.kp-title { margin: 0; font-size: var(--fs-md); font-weight: 600; color: var(--text); }
+.kp-big {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* tone of the icon and the big figure; the bar takes its own from MiniBar */
+.kp-tone-ok { color: var(--green); }
+.kp-tone-warn { color: var(--amber); }
+.kp-tone-danger { color: var(--red); }
+.kp-tone-neutral { color: var(--muted); }
+
+/* the full-width bar scales with the panel; its viewBox keeps the proportions */
+.kp-panel > .chart-minibar { display: block; width: 100%; height: auto; }
+
+.kp-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.kp-fact { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.kp-fact-label,
+.kp-fact-note { font-size: var(--fs-2xs); color: var(--muted); }
+.kp-fact-value {
+  font-size: var(--fs-base);
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.kp-muted { margin: 0; font-size: var(--fs-xs); line-height: 1.4; color: var(--muted); }
+
+.kp-alert,
+.kp-hold {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: var(--r-ctl);
+  background: var(--tint-warn);
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  color: var(--text);
+}
+.kp-alert { display: flex; gap: 7px; }
+.kp-alert > svg { flex: none; margin-top: 1px; color: var(--amber); }
+.kp-alert b { font-weight: 600; color: var(--amber); }
+.kp-hold { display: flex; flex-direction: column; gap: 4px; }
+.kp-hold p { margin: 0; }
+.kp-hold-title { font-weight: 600; }
+.kp-hold-facts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; padding: 0; list-style: none; color: var(--text-2); }
+.kp-hold-note { color: var(--text-2); }
+
+.kp-rows { display: flex; flex-direction: column; gap: 5px; padding-top: 9px; box-shadow: 0 -1px 0 var(--line); }
+.kp-row { display: flex; align-items: center; gap: 7px; font-size: var(--fs-xs); color: var(--text-2); }
+.kp-row-icon { display: inline-flex; flex: none; }
+.kp-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kp-row > .chart-minibar { flex: none; }
+.kp-row-pct { flex: none; width: 36px; text-align: right; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.kp-row-reset { flex: none; width: 58px; text-align: right; font-size: var(--fs-2xs); color: var(--muted); font-variant-numeric: tabular-nums; }
+.kp-panel-session .kp-row-pct { width: 34px; }
+.kp-panel-session .kp-row-reset { width: 56px; }
+
+.kp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  box-shadow: 0 -1px 0 var(--line);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+.kp-refresh { flex: none; }
+
+.kp-panel-median .chart-spark { display: block; width: 100%; height: auto; }
+
+@media (max-width: 780px) {
+  .kp-panel,
+  .kp-panel-session,
+  .kp-panel-median { width: 100%; }
+}

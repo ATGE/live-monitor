@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Live Monitor">
+  <!-- The board's own palette: card navy tile, with a heartbeat line in the
+       accent blue of the previous logo. -->
+  <rect width="64" height="64" rx="14" fill="#161b24"/>
+  <rect x="1.5" y="1.5" width="61" height="61" rx="12.5" fill="none" stroke="#2c3646" stroke-width="3"/>
+
+  <!-- A pulse: flat, a spike up and down, a small beat, flat again. -->
+  <path d="M7 34 H20 L26 14 L35 50 L41 28 L45 34 H57" fill="none" stroke="#4f8ef7"
+        stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

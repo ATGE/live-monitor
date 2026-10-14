@@ -1,0 +1,325 @@
+/* activity — owner: 1-activity. See SCR plan §1.2.
+ *
+ * The tool group of a turn (ActivityGroup.jsx), the canvas cards under an
+ * Artifact call, and the background strip above the composer
+ * (BackgroundStrip.jsx). Direction «C refinada»: group on `--bg`, state by
+ * icon, never by colour alone. Measures come from Chat.dc.html.
+ */
+
+/* ---- group ------------------------------------------------------------ */
+/* `.messages` is a column flex box that scrolls; a child with `overflow` has
+   no minimum height there and flexbox would squash a tree holding 113 tools.
+   Never shrink it. */
+.messages > .ac-group { flex: none; }
+
+.ac-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  font-size: var(--fs-xs);
+}
+
+.ac-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 4px;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ac-head-icon { flex: none; color: var(--violet); font-size: 14px; }
+.ac-head-count { font-weight: 600; color: var(--text-2); }
+.ac-head-part, .ac-head-wait, .ac-head-bad {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.ac-head-part::before, .ac-head-wait::before, .ac-head-bad::before { content: '·'; margin-right: 2px; }
+.ac-head-wait { color: var(--amber); }
+.ac-head-bad { color: var(--red); }
+.ac-stamp { margin-left: auto; font-variant-numeric: tabular-nums; }
+.ac-head .ac-caret { margin-left: 0; }
+.ac-caret { flex: none; margin-left: auto; color: var(--muted); }
+
+/* The innermost thing running, while the group is folded. */
+.ac-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 0 2px 2px;
+  color: var(--muted);
+}
+.ac-current-name { flex: none; color: var(--text-2); }
+.ac-current-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.ac-items { display: flex; flex-direction: column; }
+.ac-earlier { opacity: 0.8; }
+
+/* ---- row -------------------------------------------------------------- */
+.ac-item { --indent: calc(var(--depth, 0) * 16px); }
+
+.ac-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 22px;
+  margin: 0;
+  padding: 0 0 0 var(--indent);
+  border: 0;
+  border-radius: var(--r-xs);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.ac-line:disabled { cursor: default; }
+.ac-line:not(:disabled):hover { background: var(--tint-neutral); }
+.ac-line:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* A row whose path opens in the viewer: see viewer/filerefs.css. */
+.file-row.ac-line.no-detail:hover { background: none; }
+
+.ac-status { flex: none; display: inline-grid; place-items: center; width: 14px; font-size: 13px; }
+.ac-st-done { color: var(--green); }
+.ac-st-error { color: var(--red); }
+.ac-st-stopped { color: var(--amber); }
+.ac-wait { color: var(--amber); }
+
+.ac-name {
+  flex: none;
+  width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.ac-kind-agent > .ac-line .ac-name { width: auto; color: var(--text-2); }
+.ac-summary {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--text-2);
+}
+.ac-kind-agent > .ac-line .ac-summary { font-family: var(--font-sans); font-size: var(--fs-xs); color: var(--text); }
+.ac-progress {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-style: italic;
+  color: var(--muted);
+}
+.ac-time { flex: none; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ac-tag {
+  flex: none;
+  padding: 0 6px;
+  border-radius: var(--r-pill);
+  background: var(--tint-warn);
+  color: var(--amber);
+}
+.ac-line .ac-caret { margin-left: auto; }
+.ac-summary + .ac-tag, .ac-summary + .ac-time, .ac-summary + .ac-progress { margin-left: auto; }
+
+/* The path of Read/Write/Edit, as a real button above the row's toggle. */
+.ac-line .file-ref { max-width: 100%; font-family: inherit; }
+
+/* ---- canvas card ------------------------------------------------------- */
+/* Indented to the column of the row's summary: 14 status + 8 gap + 52 name + 8 gap. */
+.ac-canvases {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 4px 0 2px calc(82px + var(--indent));
+}
+.ac-canvas {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  min-width: 0;
+  height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px 0 5px;
+  border-radius: var(--r-ctl);
+  background: var(--card);
+  box-shadow: var(--edge-hi), inset 0 0 0 1px var(--card-border);
+  color: var(--text);
+  font-size: var(--fs-ui);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ac-canvas:hover { background: var(--surface-3); }
+.ac-canvas:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ac-canvas-icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-sm);
+  background: var(--tint-violet);
+  color: var(--violet);
+  font-size: 14px;
+}
+.ac-canvas-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ac-canvas-ext { flex: none; color: var(--muted); font-size: 13px; }
+
+/* ---- detail ----------------------------------------------------------- */
+.ac-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 0 8px calc(22px + var(--indent));
+}
+.ac-cmd, .ac-console {
+  margin: 0;
+  padding: 7px 9px;
+  border-radius: var(--r-sm);
+  background: var(--col);
+  box-shadow: inset 0 0 0 1px var(--card-border);
+  font: var(--fs-2xs)/1.45 var(--font-mono);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ac-cmd { color: var(--info-fg); }
+.ac-console { max-height: 260px; overflow-y: auto; color: var(--text-2); }
+.ac-console.is-live { box-shadow: inset 0 0 0 1px var(--live); }
+.ac-err { color: var(--red); }
+.ac-agent-text { color: var(--muted); white-space: pre-wrap; font-size: var(--fs-sm); }
+.ac-agent-report {
+  white-space: pre-wrap;
+  padding: 6px 9px;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--col);
+  box-shadow: inset 2px 0 0 var(--live);
+}
+.ac-who { display: block; margin-bottom: 3px; font-size: var(--fs-xs); color: var(--info-fg); }
+.ac-dim { margin: 0; color: var(--muted); }
+.ac-detail > .ac-children { margin-left: -8px; padding-left: 8px; box-shadow: inset 1px 0 0 var(--line); }
+.ac-earlier-btn {
+  display: block;
+  margin: 2px 0 4px;
+  padding: 2px 8px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-xs);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-2xs);
+  cursor: pointer;
+}
+.ac-earlier-btn:hover { color: var(--text); }
+.ac-earlier-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.ac-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- background strip, joined to the composer ------------------------- */
+.ac-bg {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 160px;
+  margin: 0 12px;
+  padding: 6px 8px;
+  overflow-y: auto;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+/* Servers alone are nothing to wait for: the strip stops looking busy. */
+.ac-bg.is-only-serving { box-shadow: inset 0 0 0 1px var(--line); }
+.ac-bg-section { display: flex; flex-direction: column; gap: 2px; }
+.ac-bg-section + .ac-bg-section { margin-top: 4px; padding-top: 4px; box-shadow: inset 0 1px 0 var(--line); }
+.ac-bg-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--info-fg);
+  font-variant-numeric: tabular-nums;
+}
+.ac-bg-serving { color: var(--green); }
+.ac-bg-serving::before {
+  content: '';
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+.ac-bg-line { display: flex; align-items: center; gap: 4px; }
+.ac-bg-row {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 14px minmax(0, 2fr) minmax(0, 3fr) auto;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 3px 4px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-xs);
+  text-align: left;
+  cursor: pointer;
+}
+.ac-bg-row:hover { background: var(--tint-neutral); }
+.ac-bg-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ac-bg-mark { display: inline-grid; place-items: center; }
+.ac-bg-still { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+.ac-bg-name, .ac-bg-step { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-bg-step { color: var(--muted); font-family: var(--font-mono); font-size: var(--fs-2xs); }
+.ac-bg-meta { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ac-bg-stop:hover, .ac-bg-stop:focus-visible { color: var(--red); }
+.ac-bg-stopping { flex: none; padding: 0 4px; color: var(--muted); font-size: var(--fs-xs); font-style: italic; white-space: nowrap; }
+
+@container (max-width: 460px) {
+  .ac-bg-row { grid-template-columns: 14px minmax(0, 1fr) auto; }
+  .ac-bg-step { display: none; }
+}
+
+/* ---- phone ------------------------------------------------------------ */
+@media (max-width: 780px) {
+  .ac-line { min-height: 32px; }
+  .ac-bg-row { min-height: 32px; }
+  .ac-bg-stop { width: 32px; height: 32px; }
+  .ac-canvas { height: 36px; }
+}
+@media (pointer: coarse) {
+  .ac-line { min-height: 32px; }
+}
