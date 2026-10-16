@@ -1627,11 +1627,13 @@ configEvents.on('invalid', (e) => {
 // crash guard exits with 1 and the restart and upgrade scripts see a dead board.
 const promptCount = validatePrompts();
 
-server.listen(config.port, () => {
+// Native Linux startup is loopback-only unless the operator explicitly opts out.
+const bindHost = process.env.HFSMON_BIND_HOST || (process.platform === 'win32' ? undefined : '127.0.0.1');
+server.listen(config.port, bindHost, () => {
   // From here on the board exists and holds state: the crash guard stops
   // treating a failure as "it never started" and starts keeping the process up.
   listening = true;
-  console.log(`hfs-monitor escuchando en http://localhost:${config.port}`);
+  console.log(`hfs-monitor escuchando en http://${bindHost || 'localhost'}:${config.port}`);
   console.log(`acceso: ${describeAccess()}`);
   console.log(`proyecto: ${config.project.repoPath} (${config.github.repo})`);
   console.log(`plantillas de prompt validadas: ${promptCount}`);
