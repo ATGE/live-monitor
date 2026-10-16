@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
+import { runTaskAgent } from './agents/index.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
 import { Mutex, Semaphore } from './exec.js';
@@ -3145,6 +3146,9 @@ async function triagePhase(task, issue) {
   // to replace it.
   task.advisorPlan = null;
   const onEvent = claudeLogger(task, 'triage');
+  // Codex is opt-in for this read-only stage; Claude remains the default.
+  // Every re-ask must use the same provider as the original thread.
+  const run = (options) => runTaskAgent(options, { stage: 'triage', cfg });
   const startedAt = Date.now();
   const tune = tunedSession(task, 'triage', { cfg });
   const triage = await nudgedSession(task, 'triage', {
@@ -3166,10 +3170,10 @@ async function triagePhase(task, issue) {
       // No stack or no QA config: nothing to drive in a browser, and triage must not propose it.
       qaAvailable: !(cfg.stack == null || cfg.qa == null),
     }),
-  });
+  }, { run });
   if (!triage.ok) throw triage.quota ? new QuotaExhausted('triage') : new Error(`Triage failed: ${triage.error ?? 'no result'}`);
 
-  const { verdict } = await triageVerdictFor(task, triage, { cfg, onEvent });
+  const { verdict } = await triageVerdictFor(task, triage, { cfg, onEvent, run });
   task.complexity = verdict.complexity;
   task.triageSummary = verdict.summary;
   store.addLog(task, 'triage', `veredicto: ${verdict.complexity} — ${verdict.reason}`);
@@ -3178,7 +3182,7 @@ async function triagePhase(task, issue) {
   // The split triage saw is the fix planner's starting point, so the two
   // readings of the issue are compared instead of made twice from scratch.
   const plan = await workPlanFrom(task, 'triage', triage, {
-    machine: machineOf(task), cwd: task.worktreePath, model: tune.model, tuning: tune, onEvent,
+    machine: machineOf(task), cwd: task.worktreePath, model: tune.model, tuning: tune, onEvent, run,
   });
   reportParallelism(task, 'triage', plan, triage.toolCounts, Date.now() - startedAt);
   task.triagePlan = plan;
@@ -3187,7 +3191,7 @@ async function triagePhase(task, issue) {
   // What a tester would do in the browser, decided before any code exists.
   // Refined later, at the phase, with the fix and the e2e run in hand.
   const qaPlan = await taggedFrom(task, 'triage', triage, {
-    read: readQaPlan, tag: QA_PLAN_TAG, machine: machineOf(task), cwd: task.worktreePath, model: tune.model, tuning: tune, onEvent,
+    read: readQaPlan, tag: QA_PLAN_TAG, machine: machineOf(task), cwd: task.worktreePath, model: tune.model, tuning: tune, onEvent, run,
   });
   if (qaPlan) {
     // A fresh triage plan is a new starting point: whatever an earlier cycle
@@ -8997,7 +9001,7 @@ function claudeLogger(task, phase) {
       case 'auth': authFailed.set(task, ev.machine ?? task.machine ?? 'local'); break;
       case 'init':
         // The effort is what the board asked for (`tunedSession`); the CLI does not report it.
-        store.addLog(task, phase, `Claude session started (${ev.model}${task.phaseModels?.[phase]?.effort ? `, effort ${task.phaseModels[phase].effort}` : ''})`);
+        store.addLog(task, phase, `${ev.provider === 'codex' ? 'Codex' : 'Claude'} session started (${ev.model}${task.phaseModels?.[phase]?.effort && ev.provider !== 'codex' ? `, effort ${task.phaseModels[phase].effort}` : ''})`);
         // A version bump reaches the board through the alias, on its own; the
         // first session to get the new one is where that becomes visible.
         if (ev.changed) store.addLog(task, phase, `ℹ️ «${ev.requested}» now resolves to ${ev.model} (was ${ev.previous})`);
