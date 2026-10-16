@@ -80,6 +80,9 @@ script('systemctl', [
   'exit 0',
 ].join('\n'));
 script('npm', 'echo "npm $*" >> "$FAKE_DIR/calls.log"');
+// The runner's linger status must not depend on the CI/VM user's real
+// systemd loginctl configuration. Production still warns on Linger=no.
+script('loginctl', 'echo yes');
 
 function findShellDir() {
   if (spawnSync('sh', ['-c', 'timeout 1 true'], { stdio: 'ignore' }).status === 0) return null;

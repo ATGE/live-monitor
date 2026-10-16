@@ -127,7 +127,10 @@ before(async () => {
 
   realBoardRoot = files.filesHooks.boardRoot;
   files.filesHooks.homeOf = async (m) => (m.name === 'local' ? L.home : B.home);
-  files.filesHooks.uidOf = async () => null;
+  // Files created in the scratchpad are owned by this test process on POSIX.
+  // A null UID means unknown ownership and is correctly denied by the viewer.
+  // Keep the negative ownership cases below, which explicitly stub UID mismatches.
+  files.filesHooks.uidOf = async () => (HOST_WIN ? null : (process.getuid?.() ?? null));
   files.filesHooks.boardRoot = (m) => (m.kind === 'local' ? L.repo : null);
   files.filesHooks.tmpRoots = (m) => [m.name === 'local' ? L.tmp : B.tmp];
   files.filesHooks.isAbsolute = (m, p) => (HOST_WIN && m.kind === 'runner' ? path.win32.isAbsolute(p) : m.path.isAbsolute(p));
