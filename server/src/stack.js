@@ -476,6 +476,31 @@ async function launch(task, machine, name, spec, port, log, extra, stack, stackC
 /** Test seam: how long the health and start loops sleep between looks. */
 export const stackHooks = { pollMs: 3000, stopGraceMs: 5000 };
 
+/**
+ * On Linux a detached shell can exit before the service it launched has
+ * released its listening socket. Awaiting the shell's exit alone is not a
+ * reliable sign that the worktree's stack is stopped.
+ *
+ * Fail closed: if any port is still occupied after the stop grace period,
+ * retain the task's stack record instead of falsely reporting success and
+ * returning its reserved ports to the allocator.
+ */
+async function waitForReleasedPorts(machine, ports) {
+  const pending = [...new Set(ports.filter((port) => Number.isInteger(port) && port > 0))];
+  const deadline = Date.now() + Math.max(1000, stackHooks.stopGraceMs);
+  while (pending.length) {
+    for (let i = pending.length - 1; i >= 0; i -= 1) {
+      if (await machine.portFree(pending[i])) pending.splice(i, 1);
+    }
+    if (!pending.length) return;
+    if (Date.now() >= deadline) {
+      throw new Error(`the stack still has active listeners on ports ${pending.join(', ')} after stop`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, Math.min(200, stackHooks.pollMs)));
+  }
+}
+
+
 async function waitHealthy(task, log, stack) {
   const deadline = Date.now() + (stack.healthTimeoutMinutes ?? 5) * 60 * 1000;
   const pending = new Map(Object.entries(stack.services));
@@ -685,7 +710,9 @@ export async function stopStack(issue) {
     // `stackOrNull`: stopping is cleanup, and it has to work for a task whose
     // project is no longer registered just as much as for one whose is.
     await freeWorktree(task, machine, log, stackOrNull(task.project));
-    releasePorts(machine, Object.values(task.stack.services ?? {}).map((svc) => svc.port));
+    const ports = Object.values(task.stack.services ?? {}).map((svc) => svc.port);
+    await waitForReleasedPorts(machine, ports);
+    releasePorts(machine, ports);
     if (failures.length) {
       const error = `could not stop everything: ${failures.join('; ')}. Press «Stop stack» to try again.`;
       task.stack.status = 'error';
