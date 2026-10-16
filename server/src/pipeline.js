@@ -3035,10 +3035,13 @@ export function tunedSession(task, role, { stage = role, cfg = cfgOf(task), reco
   if (role === 'plan' && !t.model) t.model = tuningFor('advisor', cfg).model;
   // Likewise the review replies, which fall back to the demo's model.
   if (role === 'reply' && !t.model) t.model = tuningFor('demo', cfg).model;
-  const out = { model: t.model };
-  if (t.effort) out.effort = t.effort;
-  if (t.thinking) out.thinking = t.thinking;
-  if (t.fastMode) out.fastMode = true;
+  const codexTriage = role === 'triage' && cfg.agents?.phases?.triage === 'codex';
+  // The existing Claude tuning aliases (opus/sonnet) are not Codex models.
+  // Show the actual provider in the card instead of mislabeling a Codex run.
+  const out = { model: codexTriage ? (cfg.agents?.codex?.model || 'Codex (default)') : t.model };
+  if (!codexTriage && t.effort) out.effort = t.effort;
+  if (!codexTriage && t.thinking) out.thinking = t.thinking;
+  if (!codexTriage && t.fastMode) out.fastMode = true;
   out.available = t.available;
   out.onWarning = (m) => store.addLog(task, stage, `⚠️ ${m}`);
   // Who is asking, so `runClaude` can record the session's span on this task.
@@ -3058,7 +3061,7 @@ export function tunedSession(task, role, { stage = role, cfg = cfgOf(task), reco
   if (record) {
     const seen = { ...(task.phaseModels ?? {}) };
     delete seen[stage];
-    seen[stage] = { model: t.model, effort: t.effort ?? null };
+    seen[stage] = { model: out.model, effort: codexTriage ? (cfg.agents?.codex?.reasoningEffort ?? null) : (t.effort ?? null) };
     task.phaseModels = seen;
     store.touch(task);
   }
