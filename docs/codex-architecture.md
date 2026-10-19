@@ -109,15 +109,23 @@ bash server/tools/codex-linux-sandbox-check.sh
 ```
 
 The script prints OS/kernel, `bwrap` availability, namespace/AppArmor settings,
-and the result of a harmless `codex sandbox linux /bin/true`. Neither this
+and the result of a harmless `codex sandbox -- /bin/true`. Neither this
 script nor the smoke test needs a production repository or secrets.
 
 **Observed on `dev-vm`, 2026-10-19:** `bwrap` was absent from PATH,
 the additional Bubblewrap AppArmor profile was not installed, and
 `kernel.apparmor_restrict_unprivileged_userns=1`. Both `unshare -Ur`
 (`uid_map: Operation not permitted`) and
-`codex sandbox linux /bin/true`
+`codex sandbox -- /bin/true`
 (`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`) failed.
+
+**2026-10-19 correction:** the initial diagnostic incorrectly ran
+`codex sandbox linux /bin/true`. On CLI 0.162.1 the host backend is implicit:
+`codex sandbox -- /bin/true`. The old command attempts to execute a
+program named `linux`, producing `Failed to execvp linux` (exit 101),
+which is **not evidence of a sandbox failure**. Our shell diagnostic now uses
+the corrected command. Once `bwrap` and the scoped AppArmor profile are
+installed, rerun the corrected command before concluding the sandbox fails.
 This precisely matches the documented Ubuntu/AppArmor compatibility failure.
 The fix is to install the distro Bubblewrap and the packaged scoped profile
 **inside the Incus Ubuntu VM**, not to turn off kernel security controls.
