@@ -64,7 +64,9 @@ test('App Server RPC errors preserve their method and machine-readable error cod
   const server = new CodexAppServer({ timeoutMs: 500 });
   await server.open();
   const failing = server.request('bad/request', { id: 'nope' });
+  await new Promise((resolve) => setImmediate(resolve));
   const request = process.fromClient.find((m) => m.method === 'bad/request');
+  assert.ok(request, 'request reaches mock process');
   process.write({ id: request.id, error: { code: -32602, message: 'Invalid params: sandbox' } });
   await assert.rejects(failing, /-32602: Invalid params: sandbox/);
   server.close();
