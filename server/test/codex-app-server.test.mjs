@@ -204,6 +204,21 @@ test('Codex sessions resume and fork existing history without corrupting source 
   existing.close();
 });
 
+test('A failed initialize reports the real RPC rejection instead of masking it as App Server closed', async () => {
+  class FailingAppServer extends EventEmitter {
+    alive = false;
+    async open() { throw new Error('RPC -32600: unsupported jsonrpc header'); }
+    close() { this.emit('disconnected', new Error('Codex App Server closed')); }
+  }
+  codexChatHooks.create = () => new FailingAppServer();
+  const session = new CodexChatSession({ machine: { kind: 'local' }, cwd: '/repo' });
+  const result = await session.send('hello');
+  assert.equal(result.ok, false);
+  assert.match(result.error, /-32600: unsupported jsonrpc header/);
+  assert.doesNotMatch(result.error, /App Server closed/);
+  session.close();
+});
+
 test('Never start Codex chats on remote runners, and reject mixed Claude thread ids', async () => {
   const session = new CodexChatSession({ machine: { kind: 'runner' }, cwd: '/repo' });
   const res = await session.send('hello');
