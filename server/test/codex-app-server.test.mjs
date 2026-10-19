@@ -166,7 +166,7 @@ test('Chat uses App Server, read-only default, persistent thread id, messages an
   assert.ok(events.some((e) => e.kind === 'tool'));
   assert.ok(events.some((e) => e.kind === 'text'));
   assert.deepEqual(fake.calls.filter((c) => c.method === 'thread/start')[0].params, {
-    cwd: '/repo', sandbox: 'readOnly', approvalPolicy: 'onRequest',
+    cwd: '/repo', sandbox: 'read-only', approvalPolicy: 'on-request',
   });
   const sent = fake.calls.find((c) => c.method === 'turn/start');
   assert.equal(sent.params.sandboxPolicy.type, 'readOnly');
@@ -184,7 +184,26 @@ test('Writable chat stays under worktree sandbox without network, explicit appro
   assert.equal(r.ok, true);
   const opts = fake.calls.find((c) => c.method === 'turn/start').params;
   assert.deepEqual(opts.sandboxPolicy, { type: 'workspaceWrite', writableRoots: ['/repo'], networkAccess: false });
-  assert.equal(opts.approvalPolicy, 'onRequest');
+  assert.equal(opts.approvalPolicy, 'on-request');
+  const thread = fake.calls.find((call) => call.method === 'thread/start');
+  assert.equal(thread.params.sandbox, 'workspace-write');
+  assert.equal(thread.params.approvalPolicy, 'on-request');
+  session.close();
+});
+
+test('thread and turn sandbox types deliberately use different enum formats', async () => {
+  const fake = new FakeAppServer();
+  codexChatHooks.create = () => fake;
+  const session = new CodexChatSession({ machine: { kind: 'local' }, cwd: '/repo' });
+  await session.send('read');
+  const start = fake.calls.find((call) => call.method === 'thread/start').params;
+  const turn = fake.calls.find((call) => call.method === 'turn/start').params;
+  // Verified against openai/codex tag rust-v0.162.1:
+  // schema/json/v2/ThreadStartParams.json and TurnStartParams.json.
+  assert.equal(start.sandbox, 'read-only');
+  assert.equal(start.approvalPolicy, 'on-request');
+  assert.equal(turn.sandboxPolicy.type, 'readOnly');
+  assert.equal(turn.approvalPolicy, 'on-request');
   session.close();
 });
 
