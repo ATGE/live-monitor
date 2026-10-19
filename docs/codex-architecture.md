@@ -112,11 +112,18 @@ The script prints OS/kernel, `bwrap` availability, namespace/AppArmor settings,
 and the result of a harmless `codex sandbox linux /bin/true`. Neither this
 script nor the smoke test needs a production repository or secrets.
 
-**Likely cause, not yet proven on this VM:** Ubuntu 24.04's AppArmor restriction
-on unprivileged user namespaces can prevent Bubblewrap from starting isolated
-commands. It can manifest as `bwrap: loopback: Failed RTM_NEWADDR` or a
-`uid_map` permission error, while Codex login and turn completion succeed.
-Do not weaken the sandbox to make the smoke green.
+**Observed on `dev-vm`, 2026-10-19:** `bwrap` was absent from PATH,
+the additional Bubblewrap AppArmor profile was not installed, and
+`kernel.apparmor_restrict_unprivileged_userns=1`. Both `unshare -Ur`
+(`uid_map: Operation not permitted`) and
+`codex sandbox linux /bin/true`
+(`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`) failed.
+This precisely matches the documented Ubuntu/AppArmor compatibility failure.
+The fix is to install the distro Bubblewrap and the packaged scoped profile
+**inside the Incus Ubuntu VM**, not to turn off kernel security controls.
+A raw `unshare -Ur` may *continue* to fail after the fix because that
+process is unconfined; a successful real `codex sandbox` invocation is the
+acceptance criterion.
 
 ### Documented targeted remediation (inside Ubuntu guest, not Kubuntu host)
 
@@ -125,12 +132,19 @@ Prefer installing the distribution Bubblewrap and the targeted AppArmor profile:
 ```bash
 sudo apt-get update
 sudo apt-get install -y bubblewrap apparmor-profiles apparmor-utils
-if [ -f /usr/share/apparmor/extra-profiles/bwrap-userns-restrict ]; then
+# Inspect before copying: another vendor may have a profile for bwrap.
+ls -l /etc/apparmor.d/bwrap /etc/apparmor.d/usr.bin.bwrap \
+  /etc/apparmor.d/bwrap-userns-restrict 2>/dev/null || true
+
+if [ -f /usr/share/apparmor/extra-profiles/bwrap-userns-restrict ] \
+   && [ ! -e /etc/apparmor.d/bwrap-userns-restrict ] \
+   && [ ! -e /etc/apparmor.d/bwrap ] \
+   && [ ! -e /etc/apparmor.d/usr.bin.bwrap ]; then
   sudo install -m 0644 /usr/share/apparmor/extra-profiles/bwrap-userns-restrict \
     /etc/apparmor.d/bwrap-userns-restrict
   sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
 else
-  echo "No upstream profile available on this image; collect diagnostics first."
+  echo "A profile is already installed, or its package source is missing; inspect the files before modifying AppArmor."
 fi
 ```
 
@@ -218,7 +232,7 @@ SSH localhost forward instead of binding the board to the VM's external IP.
 - Working chats use `workspaceWrite` with `writableRoots` limited to the
   project worktree and `networkAccess: false`. The host process is still the
   unprivileged VM user, not root.
-- `approvalPolicy: "onRequest"` on the protocol wire. Requests for command
+- `approvalPolicy: "on-request"` on the protocol wire. Requests for command
   execution or file modifications are presented through the existing board
   question UI. No unanswered request is approved; unrecognized permissions
   default to decline/empty grants.
