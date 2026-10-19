@@ -37,4 +37,4 @@ jobs:
       - name: Codex adapter and App Server tests
         run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs
       - name: Full regression suite
-        run: npm test
+        run: node --test --test-concurrency=4 server/test/*.test.mjs
