@@ -103,6 +103,9 @@ export class CodexChatSession {
       this.sessionId = CODEX_SESSION_PREFIX + this.#threadId;
       this.onEvent?.({ kind: 'init', provider: 'codex', sessionId: this.sessionId, model: this.model ?? 'default' });
     })().catch((e) => {
+      // Preserve the originating RPC/protocol error. Closing first fires the
+      // disconnect handler, which otherwise masks it with "App Server closed".
+      this.#settle(false, `Codex App Server startup failed: ${e.message}`);
       client.close();
       throw e;
     });
