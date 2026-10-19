@@ -5,7 +5,7 @@
 // The fake query here behaves like that CLI: its stream ends only when the test
 // says which call ends it (`interrupt()`, `close()`, or nothing at all).
 import './isolate.mjs';   // first: `claude.js` reaches the data directory
-import { test, beforeEach, after } from 'node:test';
+import { test, before, beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -18,12 +18,18 @@ const original = {
   graceEndMs: claudeHooks.graceEndMs, killTree: claudeHooks.killTree,
 };
 const restore = () => Object.assign(claudeHooks, original);
+// The fake CLI streams intentionally have no OS file descriptors. Production
+// always has a live CLI pipe, but under a parallel CI runner an unref() grace
+// timer can otherwise be the only thing keeping the event loop alive and Node
+// cancels every remaining test. This interval models that process handle.
+let fakeCliKeepalive;
+before(() => { fakeCliKeepalive = setInterval(() => {}, 200); });
 beforeEach(() => {
   restore();
   claudeHooks.taskGraceMs = 30;
   claudeHooks.graceEndMs = 20;
 });
-after(restore);
+after(() => { clearInterval(fakeCliKeepalive); restore(); });
 
 const T = { timeout: 5000 };
 const tick = () => new Promise((resolve) => { setImmediate(resolve); });
