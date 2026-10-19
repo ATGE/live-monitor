@@ -69,7 +69,7 @@ export class CodexChatSession {
     this.#closed = false;
     const client = codexChatHooks.create({
       command: this.command,
-      requestHandler: (msg) => this.#approval(msg),
+      requestHandler: (msg, options) => this.#approval(msg, options?.signal),
     });
     this.#client = client;
     client.on('notification', (msg) => this.#onNotification(msg));
@@ -109,13 +109,13 @@ export class CodexChatSession {
     return this.#opening;
   }
 
-  async #approval(msg) {
+  async #approval(msg, signal) {
     // The RPC transport declines when nothing explicitly authorizes a request.
     if (this.permissionMode === 'plan' || !this.#pending) return { decision: 'decline' };
     if (!/requestApproval$/.test(msg.method)) return { decision: 'decline' };
     try {
       const answer = await this.onApproval?.({
-        id: String(msg.id), method: msg.method, params: msg.params ?? {},
+        id: String(msg.id), method: msg.method, params: msg.params ?? {}, signal,
       });
       return answer?.decision === 'accept' ? { decision: 'accept' } : { decision: 'decline' };
     } catch { return { decision: 'decline' }; }
