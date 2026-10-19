@@ -5618,6 +5618,7 @@ export function chatSessionTuning(task, chat, role, { stage = role, cfg = cfgOf(
  */
 export function chatEffectiveEffort(task, chat) {
   try {
+    if (cfgOf(task).agents?.phases?.chat === 'codex') return cfgOf(task).agents.codex?.reasoningEffort ?? null;
     const t = chatSessionTuning(task, chat, 'chat');
     return t.effort ? (clampEffort(t.model, t.effort, t.available) ?? null) : null;
   } catch { return null; }
@@ -7219,6 +7220,12 @@ export function sendChat(issue, chatId, text, attachments = []) {
   // commands do not reach a session driven through the SDK, so typing one just
   // asked the model to do something it cannot do to itself.
   const command = text.match(/^\/model\b\s*(.*)$/i);
+  if (command && cfgOf(task).agents?.phases?.chat === 'codex') {
+    store.addChat(task, chat.id, 'assistant',
+      'Codex model selection is configured with agents.codex.model in config.local.json; the Claude /model selector is unavailable in Codex chats.');
+    store.touch(task);
+    return;
+  }
   if (command) {
     handleModelCommand(task, chat, command[1].trim());
     return;
@@ -7675,6 +7682,9 @@ export function setChatModel(issue, chatId, model, effort, thinking) {
   const chat = chatById(task, chatId);
   if (!chat) throw new Error((isHolder(task) ? `The project chat has no such chat` : `Task #${issue} has no such chat`));
   const cfg = cfgOf(task);
+  if (cfg.agents?.phases?.chat === 'codex') {
+    throw new Error('Codex chat model/effort is configured under agents.codex in config.local.json; Claude model choices do not apply.');
+  }
   const available = cfg.claude.available ?? [];
   const allowed = available.map((m) => m.id);
   if (model && !allowed.includes(model)) {
