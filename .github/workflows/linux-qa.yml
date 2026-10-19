@@ -33,6 +33,6 @@ jobs:
       - name: Build frontend
         run: npm run build --prefix web
       - name: Codex adapter and App Server tests
-        run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs
+        run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs server/test/codex-smoke.test.mjs
       - name: Full regression suite
         run: node --test --test-concurrency=2 server/test/*.test.mjs
