@@ -22,6 +22,12 @@ function fakeProcess() {
   input.on('line', (line) => {
     const request = JSON.parse(line);
     child.fromClient.push(request);
+    // The Codex JSON-RPC dialect has no "jsonrpc" protocol version property.
+    // Reject it like a strict Codex server would so this does not regress.
+    if (Object.hasOwn(request, 'jsonrpc')) {
+      child.write({ id: request.id, error: { code: -32600, message: 'Unknown field jsonrpc' } });
+      return;
+    }
     if (request.method === 'initialize') child.write({ id: request.id, result: { userAgent: 'codex-test' } });
     if (request.method === 'thread/start') child.write({ id: request.id, result: { thread: { id: 'thread-test-123' } } });
   });
@@ -42,6 +48,7 @@ test('App Server performs initialize handshake, streams notifications and handle
   server.on('notification', (msg) => notices.push(msg.method));
   await server.open();
   assert.equal(process.fromClient[0].method, 'initialize');
+  assert.equal(Object.hasOwn(process.fromClient[0], 'jsonrpc'), false);
   assert.equal(process.fromClient[1].method, 'initialized');
   assert.equal((await server.request('thread/start', { cwd: '/tmp/project' })).thread.id, 'thread-test-123');
   process.write({ method: 'turn/started', params: { turn: { id: 'turn-test' } } });
@@ -49,6 +56,18 @@ test('App Server performs initialize handshake, streams notifications and handle
   assert.deepEqual(notices, ['turn/started']);
   server.close();
   assert.equal(server.alive, false);
+});
+
+test('App Server RPC errors preserve their method and machine-readable error code', async () => {
+  const process = fakeProcess();
+  appServerHooks.spawn = () => process;
+  const server = new CodexAppServer({ timeoutMs: 500 });
+  await server.open();
+  const failing = server.request('bad/request', { id: 'nope' });
+  const request = process.fromClient.find((m) => m.method === 'bad/request');
+  process.write({ id: request.id, error: { code: -32602, message: 'Invalid params: sandbox' } });
+  await assert.rejects(failing, /-32602: Invalid params: sandbox/);
+  server.close();
 });
 
 test('Unknown and high-risk permission requests default to denial, even without handler', async () => {
@@ -63,6 +82,7 @@ test('Unknown and high-risk permission requests default to denial, even without 
   assert.deepEqual(process.fromClient.find((m) => m.id === 40)?.result, { decision: 'decline' });
   assert.deepEqual(process.fromClient.find((m) => m.id === 41)?.result, { decision: 'decline' });
   assert.deepEqual(process.fromClient.find((m) => m.id === 42)?.result, { permissions: {} });
+  assert.ok(process.fromClient.filter((m) => m.result).every((m) => !Object.hasOwn(m, 'jsonrpc')));
   server.close();
 });
 
