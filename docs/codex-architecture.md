@@ -86,6 +86,71 @@ does not modify production projects. If it still fails, report the new full
 `APP_SERVER_SMOKE=FAIL` line and CLI version; the original RPC error should
 now be visible. Do not share auth codes, access tokens or private CLI config.
 
+## Functional smoke gate and Ubuntu sandbox remediation (2026-10-19)
+
+The first real App Server turn on **Ubuntu Noble in an Incus VM** returned
+`APP_SERVER_SMOKE=PASS` despite the model explicitly reporting that its shell
+sandbox failed and that a read-only retry was denied. The transport had actually
+worked: two turns used the same persisted thread. The **functional smoke was a
+false positive** because it only checked `turn/completed` and thread continuity.
+
+`server/tools/codex-app-server-smoke.mjs` now also requires **positive proof**
+that a completed `Bash` tool call successfully returned the actual
+`web/package.json` build script, plus an exact answer and correct second-turn
+memory. The verifier is unit-tested in `server/test/codex-smoke.test.mjs`.
+A model apology, guessed build command or silent sandbox failure gives
+`APP_SERVER_SMOKE=FAIL` (nonzero exit status).
+
+### Diagnose safely in dev-vm (no sudo)
+
+```bash
+cd ~/orca/workspaces/live-monitor/live-monitor-codex-app-qa
+bash server/tools/codex-linux-sandbox-check.sh
+```
+
+The script prints OS/kernel, `bwrap` availability, namespace/AppArmor settings,
+and the result of a harmless `codex sandbox linux /bin/true`. Neither this
+script nor the smoke test needs a production repository or secrets.
+
+**Likely cause, not yet proven on this VM:** Ubuntu 24.04's AppArmor restriction
+on unprivileged user namespaces can prevent Bubblewrap from starting isolated
+commands. It can manifest as `bwrap: loopback: Failed RTM_NEWADDR` or a
+`uid_map` permission error, while Codex login and turn completion succeed.
+Do not weaken the sandbox to make the smoke green.
+
+### Documented targeted remediation (inside Ubuntu guest, not Kubuntu host)
+
+Prefer installing the distribution Bubblewrap and the targeted AppArmor profile:
+
+```bash
+sudo apt-get update
+sudo apt-get install -y bubblewrap apparmor-profiles apparmor-utils
+if [ -f /usr/share/apparmor/extra-profiles/bwrap-userns-restrict ]; then
+  sudo install -m 0644 /usr/share/apparmor/extra-profiles/bwrap-userns-restrict \
+    /etc/apparmor.d/bwrap-userns-restrict
+  sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+else
+  echo "No upstream profile available on this image; collect diagnostics first."
+fi
+```
+
+Retest:
+
+```bash
+bash server/tools/codex-linux-sandbox-check.sh
+node server/tools/codex-app-server-smoke.mjs
+git status --short
+```
+
+**Do not** set `kernel.apparmor_restrict_unprivileged_userns=0`, run
+`codex --dangerously-bypass-approvals-and-sandbox`, change the App Server
+sandbox to `danger-full-access`, or run Live Monitor as root. If the packaged
+profile is unavailable or the VM still denies namespaces, analyze the output
+and seek an Incus/Ubuntu-compatible restricted backend.
+
+Reference: https://developers.openai.com/codex/concepts/sandboxing#prerequisites
+(The Ubuntu 24.04 remediation is documented by OpenAI).
+
 ## Running the E3 QA in the VM
 
 Use an isolated Git worktree. Do not enable this for any production repo.
