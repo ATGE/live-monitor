@@ -85,8 +85,10 @@ export class CodexChatSession {
       await client.open();
       const cfg = {
         cwd: this.cwd,
-        sandbox: this.permissionMode === 'plan' ? 'readOnly' : 'workspaceWrite',
-        approvalPolicy: 'onRequest',
+        // Thread-level enum in the Codex 0.162.1 protocol uses CLI-style kebab-case;
+        // the separate turn-level sandboxPolicy.type uses camelCase.
+        sandbox: this.permissionMode === 'plan' ? 'read-only' : 'workspace-write',
+        approvalPolicy: 'on-request',
         ...(this.model ? { model: this.model } : {}),
       };
       let opened;
@@ -202,7 +204,7 @@ export class CodexChatSession {
         sandboxPolicy: this.permissionMode === 'plan'
           ? { type: 'readOnly' }
           : { type: 'workspaceWrite', writableRoots: [this.cwd], networkAccess: false },
-        approvalPolicy: 'onRequest',
+        approvalPolicy: 'on-request',
         ...(this.model ? { model: this.model } : {}),
         ...(this.effort ? { effort: this.effort } : {}),
       };
