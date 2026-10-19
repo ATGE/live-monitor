@@ -8,7 +8,8 @@ import { createInterface } from 'node:readline';
 
 export const appServerHooks = { spawn: (cmd, args, opts) => spawn(cmd, args, opts) };
 export const CODEX_APP_SERVER_TIMEOUT_MS = 15_000;
-const decision = (method) => method === 'item/tool/requestUserInput'
+const decision = (method) => method === 'item/permissions/requestApproval'
+  ? { permissions: {} } : method === 'item/tool/requestUserInput'
   ? { answers: {} } : method === 'mcpServer/elicitation/request'
     ? { action: 'decline', content: null } : { decision: 'decline' };
 
@@ -106,10 +107,11 @@ export class CodexAppServer extends EventEmitter {
     let answer = decision(msg.method);
     try {
       if (typeof this.requestHandler === 'function') {
+        let approvalTimer;
         const supplied = await Promise.race([
           Promise.resolve().then(() => this.requestHandler(msg)),
-          new Promise((resolve) => { const t = setTimeout(() => resolve(null), 60_000); t.unref?.(); }),
-        ]);
+          new Promise((resolve) => { approvalTimer = setTimeout(() => resolve(null), 60_000); approvalTimer.unref?.(); }),
+        ]).finally(() => clearTimeout(approvalTimer));
         if (supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
           // Only explicitly validated approval decisions may reach Codex.
           if (typeof supplied.decision === 'string' && ['accept', 'decline', 'cancel'].includes(supplied.decision)
