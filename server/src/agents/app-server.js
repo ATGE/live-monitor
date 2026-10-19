@@ -46,6 +46,9 @@ export class CodexAppServer extends EventEmitter {
     child.once('exit', (code, signal) => this.#fail(new Error(`codex app-server exited (${code ?? signal ?? 'unknown'})`)));
     // Do not log raw stderr: it can include command parameters or private paths.
     child.stderr?.on('data', () => {});
+    // Broken pipes must not crash the whole board with an unhandled stream error.
+    child.stdin?.on('error', (e) => this.#fail(e));
+    child.stdout?.on('error', (e) => this.#fail(e));
     this.#reader = createInterface({ input: child.stdout });
     this.#reader.on('line', (line) => this.#receive(line));
     await this.request('initialize', {
@@ -107,10 +110,14 @@ export class CodexAppServer extends EventEmitter {
     let answer = decision(msg.method);
     try {
       if (typeof this.requestHandler === 'function') {
+        const ctl = new AbortController();
         let approvalTimer;
         const supplied = await Promise.race([
-          Promise.resolve().then(() => this.requestHandler(msg)),
-          new Promise((resolve) => { approvalTimer = setTimeout(() => resolve(null), 60_000); approvalTimer.unref?.(); }),
+          Promise.resolve().then(() => this.requestHandler(msg, { signal: ctl.signal })),
+          new Promise((resolve) => {
+            approvalTimer = setTimeout(() => { ctl.abort(); resolve(null); }, 60_000);
+            approvalTimer.unref?.();
+          }),
         ]).finally(() => clearTimeout(approvalTimer));
         if (supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
           // Only explicitly validated approval decisions may reach Codex.
