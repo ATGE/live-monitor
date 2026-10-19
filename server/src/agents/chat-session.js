@@ -79,8 +79,8 @@ export class CodexChatSession {
       await client.open();
       const cfg = {
         cwd: this.cwd,
-        sandbox: this.permissionMode === 'plan' ? 'read-only' : 'workspace-write',
-        approvalPolicy: 'on-request',
+        sandbox: this.permissionMode === 'plan' ? 'readOnly' : 'workspaceWrite',
+        approvalPolicy: 'onRequest',
         ...(this.model ? { model: this.model } : {}),
       };
       let opened;
@@ -190,8 +190,10 @@ export class CodexChatSession {
       this.#usage = null;
       const params = {
         threadId: this.#threadId, input: [{ type: 'text', text }],
-        sandboxPolicy: { type: this.permissionMode === 'plan' ? 'readOnly' : 'workspaceWrite' },
-        approvalPolicy: 'on-request',
+        sandboxPolicy: this.permissionMode === 'plan'
+          ? { type: 'readOnly' }
+          : { type: 'workspaceWrite', writableRoots: [this.cwd], networkAccess: false },
+        approvalPolicy: 'onRequest',
         ...(this.model ? { model: this.model } : {}),
         ...(this.effort ? { effort: this.effort } : {}),
       };
@@ -205,7 +207,7 @@ export class CodexChatSession {
 
   async interrupt() {
     if (!this.#pending || !this.#threadId) throw new Error('There is no Codex turn in progress');
-    await this.#client.request('turn/interrupt', { threadId: this.#threadId });
+    await this.#client.request('turn/interrupt', { threadId: this.#threadId, turnId: this.#pending.turnId });
   }
 
   /** Mid-turn steering, available via the App Server transport. */
