@@ -24,8 +24,10 @@ if [[ -r /proc/self/attr/current ]]; then
 fi
 printf '\n=== USER NAMESPACE (read-only) ===\n'
 if unshare -Ur /bin/true; then echo 'UNSHARE_USERNS=PASS'; else echo 'UNSHARE_USERNS=BLOCKED_FOR_UNCONFINED_PROCESS (expected even with a scoped Bubblewrap profile)'; fi
-printf '\n=== CODEX SANDBOX (read-only) ===\n'
-if codex sandbox linux /bin/true; then
+printf '\n=== CODEX SANDBOX (platform automatically selected; read-only command probe) ===\n'
+# Codex CLI 0.162.1 selects the Linux backend automatically. Passing
+# "linux" here is WRONG: the CLI tries to execvp a program named linux.
+if codex sandbox -- /bin/true; then
   echo 'CODEX_SANDBOX=PASS'
 else
   rc=$?
