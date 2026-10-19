@@ -64,7 +64,9 @@ export class CodexAppServer extends EventEmitter {
     this.#child.stdin.write(JSON.stringify(message) + '\n');
   }
 
-  notify(method, params = {}) { this.#send({ jsonrpc: '2.0', method, params }); }
+  // Codex App Server JSON-RPC intentionally OMITS the jsonrpc version member
+  // on the wire. Adding {jsonrpc:'2.0'} makes older CLI builds reject requests.
+  notify(method, params = {}) { this.#send({ method, params }); }
 
   request(method, params = {}, { timeoutMs = this.timeoutMs, signal } = {}) {
     if (this.#closed) return Promise.reject(new Error('Codex App Server is disconnected'));
@@ -84,7 +86,7 @@ export class CodexAppServer extends EventEmitter {
       const abort = () => finish(new Error(`Codex RPC ${method} cancelled`));
       this.#pending.set(id, { timer, abort, finish });
       signal?.addEventListener('abort', abort, { once: true });
-      try { this.#send({ jsonrpc: '2.0', id, method, params }); }
+      try { this.#send({ id, method, params }); }
       catch (e) { finish(e); }
     });
   }
@@ -95,7 +97,7 @@ export class CodexAppServer extends EventEmitter {
     if (!msg || typeof msg !== 'object') return;
     if (Object.hasOwn(msg, 'id') && !msg.method) {
       const pending = this.#pending.get(msg.id);
-      if (pending) pending.finish(msg.error ? new Error(msg.error.message ?? 'Codex RPC error') : null, msg.result);
+      if (pending) pending.finish(msg.error ? new Error(`Codex RPC error ${msg.error.code ?? 'unknown'}: ${msg.error.message ?? 'Unknown error'}`) : null, msg.result);
       return;
     }
     if (msg.method && Object.hasOwn(msg, 'id')) {
@@ -130,7 +132,7 @@ export class CodexAppServer extends EventEmitter {
         }
       }
     } catch (e) { this.emit('request_error', new Error(`Codex approval handler failed: ${e.message}`)); }
-    try { this.#send({ jsonrpc: '2.0', id: msg.id, result: answer }); }
+    try { this.#send({ id: msg.id, result: answer }); }
     catch { /* server ended meanwhile */ }
   }
 
