@@ -51,6 +51,7 @@ import { restartRouter, restartHooks, restartPending, busyList } from './restart
 import { loginState, loginEvents, startLoginChecks, noteAuthFailure } from './login.js';
 import { loginJobRouter, loginJobRunning, loginJobHooks } from './loginjob.js';
 import { claudeHooks } from './claude.js';
+import { codexCliStatus, codexLimits, providerCapabilities } from './agents/status.js';
 import { userPluginsRouter, userPluginHooks, pluginEvents, startPluginChecks, noteInit } from './userplugins.js';
 import { warmBoardPlugins } from './boardplugin.js';
 import { quotaState, quotaEvents, resumeQuotaOnBoot } from './quota.js';
@@ -99,6 +100,21 @@ app.use(restartRouter());
 // while an upgrade runs; the hooks below add the other exclusions.
 app.use(loginJobRouter());
 app.get('/api/login', (req, res) => res.json({ login: loginState() }));
+ // Provider status is separate from Claude login/quota. Never return account
+ // identity, OAuth credentials, or raw "codex login status" output to clients.
+ app.get('/api/agents', async (_req, res) => {
+   const codex = await codexCliStatus();
+   res.json({
+     default: 'claude',
+     phases: config.agents?.phases ?? {},
+     capabilities: providerCapabilities(),
+     codex,
+   });
+ });
+ app.get('/api/agents/codex/limits', async (_req, res) => {
+   const result = await codexLimits();
+   res.status(result.ok ? 200 : 503).json(result);
+ });
 restartHooks.loginBusy = loginJobRunning;
 upgradeHooks.loginRunning = loginJobRunning;
 Object.assign(loginJobHooks, {
