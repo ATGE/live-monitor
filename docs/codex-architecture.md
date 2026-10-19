@@ -54,6 +54,17 @@ bridge sent `jsonrpc: "2.0"` with all requests, notifications and approval
 responses. The mock server accepted it, masking the incompatibility. See the
 official protocol at https://developers.openai.com/codex/app-server#protocol .
 
+A second real smoke on **Codex CLI 0.162.1** revealed another wire mismatch:
+`thread/start.sandbox` is the **kebab-case CLI enum**
+(`read-only`, `workspace-write`, `danger-full-access`), while
+`turn/start.sandboxPolicy.type` is the **camelCase structured policy**
+(`readOnly`, `workspaceWrite`). Both thread and turn
+`approvalPolicy` are `on-request`, not `onRequest`. These values were
+verified against the exact `rust-v0.162.1` protocol JSON schemas:
+`codex-rs/app-server-protocol/schema/json/v2/ThreadStartParams.json` and
+`TurnStartParams.json` in https://github.com/openai/codex .
+The unit-test mock now asserts both wire formats.
+
 The App Server transport now omits that field everywhere, and protocol unit
 tests reject requests containing it. The startup handler also settles with the
 **original RPC error** before closing the child, so future failures show
