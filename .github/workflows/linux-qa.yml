@@ -23,7 +23,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: |
             server/package-lock.json
@@ -37,4 +37,4 @@ jobs:
       - name: Codex adapter and App Server tests
         run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs
       - name: Full regression suite
-        run: node --test --test-concurrency=4 server/test/*.test.mjs
+        run: node --test --test-concurrency=2 server/test/*.test.mjs
