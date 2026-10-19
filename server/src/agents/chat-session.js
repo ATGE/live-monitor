@@ -64,7 +64,9 @@ export class CodexChatSession {
     if (this.#opening) return this.#opening;
     if (this.machine?.kind !== 'local') throw new Error('Codex chat requires a local worktree');
     if (!this.cwd) throw new Error('Codex chat needs a worktree directory');
-    if (this.#closed) throw new Error('Codex chat session was closed');
+    // Like the existing Claude ChatSession, a closed idle process may reopen
+    // later using its persisted thread id.
+    this.#closed = false;
     const client = codexChatHooks.create({
       command: this.command,
       requestHandler: (msg) => this.#approval(msg),
@@ -72,6 +74,10 @@ export class CodexChatSession {
     this.#client = client;
     client.on('notification', (msg) => this.#onNotification(msg));
     client.on('disconnected', (e) => {
+      if (this.#client === client) {
+        this.#client = null;
+        this.#opening = null;
+      }
       if (this.#pending) this.#settle(false, e.message);
       this.onEvent?.({ kind: 'session_closed' });
     });
@@ -237,6 +243,10 @@ export class CodexChatSession {
     if (this.#closed) return;
     this.#closed = true;
     if (this.#pending) this.#settle(false, 'Codex chat session closed');
-    this.#client?.close();
+    this.#stopIdle();
+    const client = this.#client;
+    this.#client = null;
+    this.#opening = null;
+    client?.close();
   }
 }
