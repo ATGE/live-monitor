@@ -42,6 +42,39 @@ Use two Codex transports:
 | `web/src` | Provider/model selector, quota display | **Pending** dedicated Codex controls |
 | `plugins`, tools | Per-phase MCP and permission policy | **Pending** parity gates |
 
+## App Server JSON-RPC compatibility (Codex CLI 0.162.1)
+
+The first native smoke from the Incus VM initially failed with
+`APP_SERVER_SMOKE=FAIL Codex App Server closed` even though
+`codex login status` said `Logged in using ChatGPT`.
+
+Root cause in the client: Codex App Server speaks a JSON-RPC 2.0-like protocol
+**without a `jsonrpc` version field on the wire**. An earlier version of this
+bridge sent `jsonrpc: "2.0"` with all requests, notifications and approval
+responses. The mock server accepted it, masking the incompatibility. See the
+official protocol at https://developers.openai.com/codex/app-server#protocol .
+
+The App Server transport now omits that field everywhere, and protocol unit
+tests reject requests containing it. The startup handler also settles with the
+**original RPC error** before closing the child, so future failures show
+`Codex App Server startup failed: ...` rather than a misleading close message.
+
+To update an existing detached E3 worktree safely:
+
+```bash
+cd ~/orca/workspaces/live-monitor/live-monitor-codex-app-qa
+git status --short                # verify no uncommitted tracked changes
+git fetch origin
+git switch --detach origin/feat/e3-codex-appserver-chat
+node --test server/test/codex-app-server.test.mjs
+node server/tools/codex-app-server-smoke.mjs
+```
+
+This test is read-only, uses the same `dev` account's ChatGPT CLI login and
+does not modify production projects. If it still fails, report the new full
+`APP_SERVER_SMOKE=FAIL` line and CLI version; the original RPC error should
+now be visible. Do not share auth codes, access tokens or private CLI config.
+
 ## Running the E3 QA in the VM
 
 Use an isolated Git worktree. Do not enable this for any production repo.
