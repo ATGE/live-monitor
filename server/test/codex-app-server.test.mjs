@@ -195,7 +195,7 @@ test('Never start Codex chats on remote runners, and reject mixed Claude thread 
 
 test('Interactive turn approval is denied when plan mode is on, and otherwise requires the owner', async () => {
   const fake = new FakeAppServer();
-  codexChatHooks.create = () => fake;
+  codexChatHooks.create = (options) => { fake.options = options; return fake; };
   const session = new CodexChatSession({
     machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
     onApproval: async () => ({ decision: 'accept' }),
