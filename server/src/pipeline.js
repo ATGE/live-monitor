@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
-import { runTaskAgent } from './agents/index.js';
+import { providerFor, runTaskAgent } from './agents/index.js';
+import { CodexChatSession } from './agents/chat-session.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
 import { Mutex, Semaphore } from './exec.js';
@@ -5588,6 +5589,10 @@ const unknownOwner = (key) => (typeof key === 'string' && isHolderKey(key)
  */
 export function chatSessionTuning(task, chat, role, { stage = role, cfg = cfgOf(task) } = {}) {
   const t = tunedSession(task, role, { stage, cfg, record: false });
+  if (role === 'chat' && cfg.agents?.phases?.chat === 'codex') {
+    // Never forward Claude model aliases or Claude thinking to Codex.
+    return { model: cfg.agents.codex?.model || null, effort: cfg.agents.codex?.reasoningEffort || null };
+  }
   if (chat?.model) t.model = chat.model;
   if (chat?.effort === 'auto') delete t.effort;
   else if (chat?.effort) t.effort = chat.effort;
@@ -5627,6 +5632,21 @@ function liveOf(task, chat) {
   migrateChat(chat);
   const machine = machineOf(task);
   const cfg = cfgOf(task);
+  const chatProvider = providerFor('chat', chat.sessionId, cfg);
+  if (chatProvider === 'codex') {
+    live.session = new CodexChatSession({
+      machine, cwd: task.worktreePath,
+      ...chatSessionTuning(task, chat, 'chat', { cfg }),
+      resume: chat.sessionId ?? null,
+      forkSession: chat.forkPending === true,
+      permissionMode: chat.planMode ? 'plan' : 'bypassPermissions',
+      idleMs: (config.claude.chatIdleMinutes ?? 15) * 60_000,
+      onEvent: (ev) => onChatEvent(task, chat, live, ev),
+      onApproval: (request) => codexChatApproval(task, chat, live, request),
+    });
+    liveChats.set(key, live);
+    return live;
+  }
   live.session = new ChatSession({
     machine,
     cwd: task.worktreePath,
@@ -5668,6 +5688,39 @@ function liveOf(task, chat) {
   });
   liveChats.set(key, live);
   return live;
+}
+
+/**
+ * Reuse the current board question UI for App Server command/file approval.
+ * Unknown, expired and unanswered questions are always denied. No "approve
+ * for session" shortcut is exposed; every permission needs an explicit yes.
+ */
+function codexChatApproval(task, chat, live, { id, method, params }) {
+  if (chat.planMode || chat.pending || !/requestApproval$/.test(method)) {
+    return Promise.resolve({ decision: 'decline' });
+  }
+  const what = String(params.command ?? params.reason ?? params.itemId ?? method).slice(0, 400);
+  const question = `Codex requests permission to execute: ${what}. Allow this one action?`;
+  const normalized = normalizeQuestions({ questions: [{
+    header: 'Codex', question,
+    options: [
+      { label: 'Deny', description: 'Keep the action blocked.' },
+      { label: 'Allow once', description: 'Approve only this specific request.' },
+    ],
+  }] });
+  if (!normalized.ok) return Promise.resolve({ decision: 'decline' });
+  const toolUseId = `codex:${id}:${askSuffix()}`;
+  return new Promise((resolve) => parkPending(task, chat, live, {
+    id: toolUseId, kind: 'question', source: 'board',
+    resolve: (answer) => {
+      const choice = answer?.answers?.[question];
+      resolve({ decision: answer?.behavior === 'allow' && choice === 'Allow once' ? 'accept' : 'decline' });
+    },
+    message: {
+      role: 'question', status: 'pending', source: 'board',
+      toolUseId, questions: normalized.questions, ts: new Date().toISOString(),
+    },
+  }));
 }
 
 // ---------------------------------------------------------------------------
@@ -5856,6 +5909,9 @@ export function setChatPlanMode(issue, chatId, on) {
   migrateChat(chat);
   if (!on && chat.pending?.kind === 'plan') throw new Error('Answer the pending plan first');
   if (!on && ['running', 'asking'].includes(chat.plan?.status)) throw new Error('A plan is running: stop it or wait for it to finish');
+  const currentLive = liveChats.get(liveKey(ownerKeyOf(task), chat.id));
+  if (currentLive?.session instanceof CodexChatSession && currentLive.session.busy
+    && Boolean(on) !== chat.planMode) throw new Error('Wait for the Codex turn before changing plan mode');
   chat.planMode = Boolean(on);
   liveChats.get(liveKey(ownerKeyOf(task), chat.id))?.session
     .setPermissionMode(chat.planMode ? 'plan' : 'bypassPermissions')
@@ -7148,7 +7204,7 @@ export function sendChat(issue, chatId, text, attachments = []) {
   // And the same out of quota. Deliberately *not* queued: a message you typed
   // now must not reach a model by itself three hours from now, when what you
   // were asking about has moved on. It stays in the panel with the reason.
-  if (quotaHoldsNewWork()) {
+  if (quotaHoldsNewWork() && providerFor('chat', chat.sessionId, cfgOf(task)) === 'claude') {
     store.addChat(task, chat.id, 'assistant',
       `⏳ Quota exhausted: this message was not sent. The account comes back ${describeResume(quotaHold())}; send it again then.`);
     store.touch(task);
@@ -7182,6 +7238,18 @@ export function sendChat(issue, chatId, text, attachments = []) {
   const planRunning = ['running', 'asking'].includes(chat.plan?.status);
   const lk = liveKey(ownerKeyOf(task), chat.id);
   if (planRunning || starting.has(lk) || (chat.busy && liveChats.get(lk)?.session.alive)) {
+    // Codex has native mid-turn steer. Keep the existing queue if the turn
+    // completes before the steer arrives, or if it includes attachments.
+    const active = liveChats.get(lk)?.session;
+    if (!planRunning && !starting.has(lk) && active instanceof CodexChatSession
+      && active.busy && !attachments.length && !chat.pending) {
+      store.updateChat(task, chat, message, { patch: { delivery: 'pending' } });
+      active.steer(text).then(
+        () => markDelivery(task, chat, message.id, 'inline'),
+        () => { leaveNote(chat, text, message.id, attachments); markDelivery(task, chat, message.id, 'pending'); },
+      );
+      return;
+    }
     leaveNote(chat, text, message.id, attachments);
     store.updateChat(task, chat, message, { patch: { delivery: 'pending' } });
     return;
