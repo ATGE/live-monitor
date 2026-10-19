@@ -5696,7 +5696,7 @@ function liveOf(task, chat) {
  * Unknown, expired and unanswered questions are always denied. No "approve
  * for session" shortcut is exposed; every permission needs an explicit yes.
  */
-function codexChatApproval(task, chat, live, { id, method, params }) {
+function codexChatApproval(task, chat, live, { id, method, params, signal }) {
   if (chat.planMode || chat.pending || !/requestApproval$/.test(method)) {
     return Promise.resolve({ decision: 'decline' });
   }
@@ -5712,7 +5712,7 @@ function codexChatApproval(task, chat, live, { id, method, params }) {
   if (!normalized.ok) return Promise.resolve({ decision: 'decline' });
   const toolUseId = `codex:${id}:${askSuffix()}`;
   return new Promise((resolve) => parkPending(task, chat, live, {
-    id: toolUseId, kind: 'question', source: 'board',
+    id: toolUseId, kind: 'question', source: 'board', signal,
     resolve: (answer) => {
       const choice = answer?.answers?.[question];
       resolve({ decision: answer?.behavior === 'allow' && choice === 'Allow once' ? 'accept' : 'decline' });
