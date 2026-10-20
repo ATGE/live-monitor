@@ -85,6 +85,29 @@ The existing full suite checks prompt templates, plan revisions, tagged plans,
 new planner sites must carry the Claude gate **or** the Codex read-only adapter
 and must not bypass either.
 
+## E4b preflight: isolated workspace-write smoke (no production use)
+
+Before enabling automatic Codex implementation, a separate real-client test
+checks write sandbox behavior in a **freshly created temporary Git repository**:
+
+```bash
+node server/tools/codex-write-sandbox-smoke.mjs
+```
+
+The script creates a disposable repository under `os.tmpdir()`, makes an
+initial commit with local test credentials, and sends a prompt through the
+same App Server to change **only `probe.txt`**. It denies every explicit
+approval. Acceptance requires the exact changed bytes, a single unstaged
+file, unchanged Git HEAD, a successful tool event, and zero approval grants.
+The entire temp directory is removed in `finally`; there is no path argument
+and it never edits the actual Live Monitor checkout.
+
+`CODEX_WRITE_SMOKE=PASS` proves local workspace-write works for this
+disposable case only. It does **not** prove that user-configured MCP servers or
+external GitHub actions are mediated by Live Monitor: Codex App Server tools
+inherit their own configuration. For that reason, passing this smoke does
+not yet enable `agents.phases.fix=codex` or automatic remote publication.
+
 ## Remaining E4b before declaring Codex full support
 
 The next separate change must enforce an explicit command/MCP/GitHub-write
