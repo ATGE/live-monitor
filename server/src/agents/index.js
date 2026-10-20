@@ -3,10 +3,11 @@
 import { config } from '../config.js';
 import { runClaude } from '../claude.js';
 import { isCodexSession, runCodex } from './codex.js';
+import { runCodexReadOnlyPlan } from './planning.js';
 
 export function providerFor(stage, resume = null, cfg = config) {
   const selected = cfg.agents?.phases?.[stage] ?? 'claude';
-  if (!['triage', 'chat'].includes(stage) && selected !== 'claude') {
+  if (!['triage', 'chat', 'plan'].includes(stage) && selected !== 'claude') {
     throw new Error(`Provider ${selected} is not yet supported for phase ${stage}`);
   }
   if (!['claude', 'codex'].includes(selected)) {
@@ -27,6 +28,20 @@ export async function runTaskAgent(options, { stage = 'triage', cfg = config } =
   if (stage === 'chat') throw new Error('Interactive Codex/Claude sessions must use ChatSession, not runTaskAgent');
   if (provider === 'claude') return runClaude(options);
   const opts = cfg.agents?.codex ?? {};
+  // Planning uses the App Server CLI already validated with ChatGPT on dev-vm.
+  // Keep it read-only; hooks, external MCPs, and approval handlers from Claude
+  // are intentionally not forwarded. All other task stages stay on Claude.
+  if (stage === 'plan') {
+    return runCodexReadOnlyPlan({
+      machine: options.machine, cwd: options.cwd, prompt: options.prompt,
+      resume: options.resume, forkSession: options.forkSession,
+      onEvent: options.onEvent, signal: options.signal,
+      model: opts.model || undefined,
+      modelReasoningEffort: opts.reasoningEffort || undefined,
+      timeoutMs: Number.isInteger(opts.timeoutMinutes) && opts.timeoutMinutes > 0
+        ? opts.timeoutMinutes * 60_000 : undefined,
+    });
+  }
   // SDK-specific tuning is separate from the existing Claude model aliases.
   return runCodex({
     ...options,
