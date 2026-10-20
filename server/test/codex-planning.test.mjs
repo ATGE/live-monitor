@@ -3,7 +3,7 @@ import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { tempDir } from './teardown.mjs';
 import { codexBatchHooks, runCodexReadOnlyPlan } from '../src/agents/planning.js';
-import { providerFor, runTaskAgent } from '../src/agents/index.js';
+import { forkSessionForProvider, providerFor, runTaskAgent } from '../src/agents/index.js';
 
 const original = codexBatchHooks.create;
 const cwd = tempDir('hfsmon-codex-plan-');
@@ -19,6 +19,15 @@ test('planning stays Claude by default; only plan/triage/chat can opt in', () =>
   assert.throws(() => providerFor('plan', 'claude-1234', cfg), /Claude thread/);
   assert.throws(() => providerFor('plan', 'codex:12345678', {}), /Codex thread/);
   assert.equal(providerFor('plan', 'codex:12345678', cfg), 'codex');
+});
+
+test('Codex planning plan record cannot be forked into Claude executor session', () => {
+  assert.equal(forkSessionForProvider('codex:thread-12345678', 'claude'), null);
+  assert.equal(forkSessionForProvider('claude-thread-12345678', 'claude'), 'claude-thread-12345678');
+  assert.equal(forkSessionForProvider('codex:thread-12345678', 'codex'), 'codex:thread-12345678');
+  assert.equal(forkSessionForProvider('claude-thread-12345678', 'codex'), null);
+  assert.equal(forkSessionForProvider(null, 'claude'), null);
+  assert.throws(() => forkSessionForProvider('codex:thread-12345678', 'unsupported'), /Unknown/);
 });
 
 test('a read-only planning turn ignores all Claude hooks and model aliases', async () => {
