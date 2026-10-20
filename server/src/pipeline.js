@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
-import { providerFor, runTaskAgent } from './agents/index.js';
+import { forkSessionForProvider, providerFor, runTaskAgent } from './agents/index.js';
 import { CodexChatSession } from './agents/chat-session.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
@@ -3628,8 +3628,7 @@ async function fixPhase(task, issue, extraContext = '', { continuing = false } =
       record = newPlanRecord({ id: `fix-${Date.now().toString(36)}`, text: planText(brief, plan), ...plan });
       // A Codex App Server thread is NOT a Claude session. The executor still
       // uses Claude; it must not attempt to fork a Codex plan transcript.
-      record.forkFrom = task.planSessionId?.startsWith('codex:')
-        ? null : (task.planSessionId ?? null);
+      record.forkFrom = forkSessionForProvider(task.planSessionId, 'claude');
       record.version = planning?.version ?? (task.planVersion ?? 0) + 1;
       record.messageId = planning?.messageId ?? null;
       // What was asked for to get this version, for «Cambios que pediste».
