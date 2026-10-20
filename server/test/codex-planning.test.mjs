@@ -30,6 +30,14 @@ test('Codex planning plan record cannot be forked into Claude executor session',
   assert.throws(() => forkSessionForProvider('codex:thread-12345678', 'unsupported'), /Unknown/);
 });
 
+test('pipeline guards every direct Claude resume from Codex chat session ids', async () => {
+  const { readFileSync } = await import('node:fs');
+  const source = readFileSync(new URL('../src/pipeline.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(source, /resume: principalChat\(task\)\??\.sessionId/);
+  assert.doesNotMatch(source, /forkFrom: chat\.sessionId/);
+  assert.match(source, /forkFrom: forkSessionForProvider\(chat\.sessionId, 'claude'\)/);
+});
+
 test('a read-only planning turn ignores all Claude hooks and model aliases', async () => {
   let sessionOptions;
   let prompt;
