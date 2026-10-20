@@ -19,18 +19,17 @@ cd ../live-monitor-codex-qa
 
 npm ci --prefix server
 npm ci --prefix web
-# Explicitly temporary pilot dependency (no lockfile change).
-npm install --prefix server --no-save --package-lock=false @openai/codex-sdk@0.163.0
-node --test server/test/codex-provider.test.mjs
-npm test
+node --test server/test/codex-provider.test.mjs server/test/codex-sdk-smoke.test.mjs
+node server/tools/codex-readonly-smoke.mjs
+node --test --test-concurrency=2 server/test/*.test.mjs
 ```
 
-**Packaging limitation of this initial PR:** the SDK is dynamically loaded
-and not yet added to the project's lockfile. This lets the existing Claude
-install and `npm ci` stay unchanged while testing the integration. After
-accepting the pilot, the next packaging change will add the dependency *and*
-commit an npm-generated `server/package-lock.json`. Reinstall the temporary
-dependency after every `npm ci --prefix server` until then.
+**Reproducible packaging:** `@openai/codex-sdk@0.163.0` is pinned in
+`server/package.json` and `server/package-lock.json` (E2 commit `a998e53`).
+`npm ci --prefix server` installs the SDK without a separate temporary
+installation. The npm audit report still contains five **preexisting**
+advisories; they require a separate security review. Do not run an
+unreviewed `npm audit fix` as part of this pilot.
 
 ### Codex authentication in the VM
 
@@ -57,9 +56,11 @@ In the Codex QA worktree after logging in:
 node server/tools/codex-readonly-smoke.mjs
 ```
 
-The sample prompt should identify the repository without changing files.
-The smoke script uses the SDK, **read-only sandbox**, no agent network access
-and no approval prompts. If the SDK or login is missing, it prints the error
+The hardened smoke requires a successful read of `package.json` through the
+Codex SDK and checks the returned name/build script against the local file.
+It rejects plausible text-only answers, failed tool reads and unexpected tool
+types. The script uses the SDK, **read-only sandbox**, no agent network access
+and no approval prompts. If the SDK or login is missing, it prints an error
 and returns nonzero.
 
 ## Opt-in triage in Live Monitor
@@ -90,7 +91,8 @@ not just in the separate QA worktree. For example:
 
 ```bash
 cd /home/dev/orca/workspaces/live-monitor/merfolk
-npm install --prefix server --no-save --package-lock=false @openai/codex-sdk@0.163.0
+# First update this checkout to a commit containing the pinned SDK dependency.
+npm ci --prefix server
 bash restart.sh
 ```
 
@@ -124,8 +126,9 @@ switch to Claude. Start a new triage cycle for those tasks.
 ## Validation
 
 ```bash
-node --test server/test/codex-provider.test.mjs
-npm test
+node --test server/test/codex-provider.test.mjs server/test/codex-sdk-smoke.test.mjs
+node server/tools/codex-readonly-smoke.mjs
+node --test --test-concurrency=2 server/test/*.test.mjs
 git status --short
 ```
 
