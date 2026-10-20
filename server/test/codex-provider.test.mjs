@@ -1,17 +1,14 @@
 import './isolate.mjs';
 import { test, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
+import { tempDir } from './teardown.mjs';
 import { codexHooks, runCodex, codexThreadId, codexEvent } from '../src/agents/codex.js';
 import { providerFor } from '../src/agents/index.js';
 
-const worktree = mkdtempSync(path.join(tmpdir(), 'hfsmon-codex-provider-'));
+const worktree = tempDir('hfsmon-codex-provider-');
 const orig = codexHooks.create;
 after(() => {
   codexHooks.create = orig;
-  rmSync(worktree, { force: true, recursive: true });
 });
 
 const usage = { input_tokens: 120, output_tokens: 30, cached_input_tokens: 0, reasoning_output_tokens: 5 };
