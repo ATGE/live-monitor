@@ -3684,7 +3684,7 @@ async function fixPhase(task, issue, extraContext = '', { continuing = false } =
     cwd: task.worktreePath,
     ...tunedSession(task, 'fix', { cfg }),
     maxTurns: maxTurnsFor('fix', cfg),
-    resume: principalChat(task)?.sessionId ?? undefined,
+    resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
     onEvent: claudeLogger(task, 'fix'),
     canUseTool: taskCanUseTool(task, 'fix'),
     hooks: ghGateHooks(task, 'fix'),
@@ -4568,7 +4568,7 @@ export async function gapsPhase(task, issue) {
       machine,
       cwd: task.worktreePath,
       ...tune,
-      resume: principalChat(task).sessionId,
+      resume: forkSessionForProvider(principalChat(task).sessionId, 'claude') ?? undefined,
       maxTurns: 30,
       onEvent,
       canUseTool: taskCanUseTool(task, 'gaps'),
@@ -5366,7 +5366,7 @@ ${services.map((s) => `- ${s.label}: ${s.localUrl ?? s.url}`).join('\n')}
       machine: machineOf(task),
       cwd: task.worktreePath,
       ...demoTune,
-      resume: principalChat(task)?.sessionId ?? undefined,
+      resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
       maxTurns: 40,
       onEvent,
       hooks: ghGateHooks(task, 'demo'),
@@ -6041,7 +6041,7 @@ function chatPlanHost(task, chat, live) {
   };
 
   return {
-    forkFrom: chat.sessionId,
+    forkFrom: forkSessionForProvider(chat.sessionId, 'claude'),
     maxRetries: config.plan?.maxRetries ?? 3,
     log: (line) => store.addLog(task, 'plan', line),
     onChange,
@@ -8184,7 +8184,7 @@ export async function draftReviewReplies(issue, reviewId) {
         machine: machineOf(task),
         cwd: task.worktreePath,
         ...tunedSession(task, 'reply', { stage: 'cr', cfg }),
-        resume: principalChat(task)?.sessionId ?? undefined,
+        resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
         maxTurns: 30,
         onEvent: claudeLogger(task, 'cr'),
         hooks: ghGateHooks(task, 'cr'),
@@ -8689,7 +8689,7 @@ export async function draftIssueClosing(issue, { chatId = null } = {}) {
         machine,
         cwd: task.worktreePath,
         ...tunedSession(task, 'reply', { stage: 'close', cfg }),
-        resume: chat.sessionId,
+        resume: forkSessionForProvider(chat.sessionId, 'claude') ?? undefined,
         maxTurns: 30,
         onEvent: claudeLogger(task, 'close'),
         // The structural half of «you draft, a person publishes»: with no Bash
