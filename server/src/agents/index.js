@@ -23,6 +23,18 @@ export function providerFor(stage, resume = null, cfg = config) {
   return selected;
 }
 
+/**
+ * A planning transcript from another provider is not a valid executor fork.
+ * Return null so the executor starts with the rendered plan in its prompt,
+ * never passing a Codex UUID into the Anthropic SDK (or vice versa).
+ */
+export function forkSessionForProvider(sessionId, targetProvider) {
+  if (sessionId == null) return null;
+  if (!['claude', 'codex'].includes(targetProvider)) throw new Error('Unknown target provider');
+  const sourceProvider = isCodexSession(sessionId) ? 'codex' : 'claude';
+  return sourceProvider === targetProvider ? sessionId : null;
+}
+
 export async function runTaskAgent(options, { stage = 'triage', cfg = config } = {}) {
   const provider = providerFor(stage, options.resume, cfg);
   if (stage === 'chat') throw new Error('Interactive Codex/Claude sessions must use ChatSession, not runTaskAgent');
