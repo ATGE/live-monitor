@@ -65,7 +65,7 @@ test('Codex planning resumes the same thread and never forks Claude ids', async 
   const r = await runTaskAgent({ machine, cwd, prompt: 'revise', resume: 'codex:thread-12345678' }, { stage: 'plan', cfg });
   assert.equal(r.ok, true);
   assert.equal(options.resume, 'codex:thread-12345678');
-  assert.equal(options.forkSession, undefined);
+  assert.equal(options.forkSession, false);
 });
 
 test('remote runner and invalid worktree fail BEFORE creating an App Server', async () => {
