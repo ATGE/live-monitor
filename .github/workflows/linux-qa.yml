@@ -34,5 +34,10 @@ jobs:
         run: npm run build --prefix web
       - name: Codex adapter and App Server tests
         run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs server/test/codex-smoke.test.mjs
+      - name: Check Codex smoke script syntax (no ChatGPT auth in CI)
+        run: |
+          node --check server/tools/codex-planning-smoke.mjs
+          node --check server/tools/codex-write-sandbox-smoke.mjs
+          node --check server/src/agents/planning.js
       - name: Full regression suite
         run: node --test --test-concurrency=2 server/test/*.test.mjs
