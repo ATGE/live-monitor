@@ -8,7 +8,7 @@ import path from 'node:path';
 import { CodexChatSession } from '../src/agents/chat-session.js';
 
 const worktree = mkdtempSync(path.join(os.tmpdir(), 'hfsmon-codex-qa-write-'));
-const exec = (args) => execFileSync('git', args, { cwd: worktree, encoding: 'utf8', timeout: 15_000 }).trim();
+const exec = (args) => execFileSync('git', args, { cwd: worktree, encoding: 'utf8', timeout: 15_000 }).trimEnd();
 let chat = null;
 try {
   exec(['init', '-q']);
