@@ -3300,7 +3300,13 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
   const { onEvent } = feed;
   const cfg = cfgOf(task);
   const tune = tunedSession(task, 'plan', { cfg });
-  const { model } = tune;
+  const codexPlan = providerFor('plan', null, cfg) === 'codex';
+  const model = codexPlan ? (cfg.agents?.codex?.model || 'Codex (default)') : tune.model;
+  // Preserve the existing mutable Claude test seam. Codex uses the isolated
+  // read-only App Server provider, including every revision and tagged retry.
+  const runPlanning = (options) => providerFor('plan', options.resume, cfg) === 'claude'
+    ? fixHooks.runClaude(options)
+    : runTaskAgent(options, { stage: 'plan', cfg });
   const machine = machineOf(task);
   const startedAt = Date.now();
   const revising = Boolean(feedback);
@@ -3327,7 +3333,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
       // The session that wrote the plan already read the code and knows why
       // the split was what it was: it redoes the plan instead of starting over.
       store.addLog(task, stage, 'resuming the session that wrote the previous plan');
-      const resumeOnce = () => fixHooks.runClaude({
+      const resumeOnce = () => runPlanning({
         ...common,
         resume,
         prompt: renderPrompt('plan-revise', { ...promptVarsFor(task, stage), feedback, processRule: processRuleFor(machine) }),
@@ -3346,7 +3352,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
       }
     }
     if (!result) {
-      result = await fixHooks.runClaude({
+      result = await runPlanning({
         ...common,
         prompt: renderPrompt('fix-plan', {
           ...promptVarsFor(task, stage),
@@ -3381,7 +3387,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
     // approve it, so the prose that opens it is part of the deliverable and is
     // asked for in the same retry as the tagged line.
     const { plan, brief, problem } = await readWorkPlanFrom(task, stage, result, {
-      machine, cwd: task.worktreePath, model, tuning: tune, onEvent, run: fixHooks.runClaude,
+      machine, cwd: task.worktreePath, model, tuning: tune, onEvent, run: runPlanning,
       giveUp: revising ? 'not continuing without the plan you asked for' : 'continuing without a plan',
       brief: true,
     });
@@ -3620,7 +3626,10 @@ async function fixPhase(task, issue, extraContext = '', { continuing = false } =
       // `record.text`, and a manifest of file paths is not something anyone
       // can say yes to. Without a brief this is exactly the old text.
       record = newPlanRecord({ id: `fix-${Date.now().toString(36)}`, text: planText(brief, plan), ...plan });
-      record.forkFrom = task.planSessionId ?? null;
+      // A Codex App Server thread is NOT a Claude session. The executor still
+      // uses Claude; it must not attempt to fork a Codex plan transcript.
+      record.forkFrom = task.planSessionId?.startsWith('codex:')
+        ? null : (task.planSessionId ?? null);
       record.version = planning?.version ?? (task.planVersion ?? 0) + 1;
       record.messageId = planning?.messageId ?? null;
       // What was asked for to get this version, for «Cambios que pediste».
