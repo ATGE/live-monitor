@@ -5700,6 +5700,11 @@ export function codexChatApproval(task, chat, live, { id, method, params = {}, t
   if (chat.planMode || chat.pending || !CODEX_APPROVAL_METHODS.includes(method)) {
     return Promise.resolve({ decision: 'decline' });
   }
+  const effectiveThreadId = threadId ?? params?.threadId ?? params?.thread_id ?? params?.conversationId ?? params?.conversation_id;
+  const effectiveTurnId = turnId ?? params?.turnId ?? params?.turn_id;
+  if (!effectiveThreadId || !effectiveTurnId) {
+    return Promise.resolve({ decision: 'decline' });
+  }
   const what = String(params.command ?? params.reason ?? params.itemId ?? method).slice(0, 400);
   const question = `Codex requests permission to execute: ${what}. Allow this one action?`;
   const normalized = normalizeQuestions({ questions: [{
@@ -5710,8 +5715,6 @@ export function codexChatApproval(task, chat, live, { id, method, params = {}, t
     ],
   }] });
   if (!normalized.ok) return Promise.resolve({ decision: 'decline' });
-  const effectiveThreadId = threadId ?? chat.sessionId ?? 'session';
-  const effectiveTurnId = turnId ?? 'turn';
   const toolUseId = `codex:${effectiveThreadId}:${effectiveTurnId}:${id}:${askSuffix()}`;
   return new Promise((resolve) => parkPending(task, chat, live, {
     id: toolUseId, kind: 'question', source: 'board', signal,
@@ -5924,7 +5927,8 @@ export function setChatPlanMode(issue, chatId, on) {
   const currentLive = liveChats.get(liveKey(ownerKeyOf(task), chat.id));
   if (chat.pending && String(chat.pending.id).startsWith('codex:')) {
     expirePending(task, chat, currentLive, 'cambio de permisos');
-  } else if (currentLive?.session instanceof CodexChatSession && currentLive.session.busy
+  }
+  if (currentLive?.session instanceof CodexChatSession && currentLive.session.busy
     && Boolean(on) !== chat.planMode) {
     throw new Error('Wait for the Codex turn before changing plan mode');
   }

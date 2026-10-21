@@ -133,20 +133,24 @@ export class CodexChatSession {
     if (!CODEX_APPROVAL_METHODS.includes(msg.method)) {
       return { decision: 'decline' };
     }
-    // Thread and turn isolation: verify params match this session's thread and turn.
-    if (msg.params?.threadId && msg.params.threadId !== this.#threadId) {
+
+    // Extract identifiers from params (supporting both camelCase and snake_case variants used by Codex protocol).
+    const requestThreadId = msg.params?.threadId ?? msg.params?.thread_id
+      ?? msg.params?.conversationId ?? msg.params?.conversation_id;
+    const requestTurnId = msg.params?.turnId ?? msg.params?.turn_id;
+
+    // Fail closed if thread or turn cannot be verified to belong to the active thread and turn.
+    // Requests with missing, empty, or mismatched identifiers MUST be rejected.
+    if (!requestThreadId || requestThreadId !== this.#threadId) {
       return { decision: 'decline' };
     }
-    if (msg.params?.turnId && this.#pending.turnId && msg.params.turnId !== this.#pending.turnId) {
+    if (!this.#pending.turnId || !requestTurnId || requestTurnId !== this.#pending.turnId) {
       return { decision: 'decline' };
     }
 
     const requestId = String(msg.id);
     const boundTurn = this.#pending;
-    if (msg.params?.turnId && !this.#pending.turnId) {
-      this.#pending.turnId = msg.params.turnId;
-    }
-    const boundTurnId = this.#pending.turnId ?? msg.params?.turnId ?? null;
+    const boundTurnId = this.#pending.turnId;
     const boundThreadId = this.#threadId;
 
     const approvalCtl = new AbortController();
@@ -307,6 +311,10 @@ export class CodexChatSession {
   async setEffort(effort) { return this.retune({ effort }); }
   async setPermissionMode(mode) {
     if (!['plan', 'bypassPermissions'].includes(mode)) throw new Error('Invalid Codex permission mode');
+    if (this.busy && mode !== this.permissionMode) {
+      this.#invalidateApprovals('permissions changed');
+      throw new Error('Cannot change Codex permissions during an active turn');
+    }
     this.permissionMode = mode;
     this.#invalidateApprovals('permissions changed');
   }

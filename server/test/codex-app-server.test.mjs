@@ -310,7 +310,7 @@ test('Unknown methods are rejected even if callback returns accept (App Server a
   assert.equal(calledForUnknown, false, 'onApproval should not be invoked for unknown methods');
 
   const resAllowed = await fake.options.requestHandler({
-    method: 'item/commandExecution/requestApproval', id: 202, params: { threadId: 'thread-chat-1' },
+    method: 'item/commandExecution/requestApproval', id: 202, params: { threadId: 'thread-chat-1', turnId: 'turn-1' },
   });
   assert.deepEqual(resAllowed, { decision: 'accept' });
   session.close();
@@ -359,6 +359,51 @@ test('Approvals are strictly associated with thread, turn and request', async ()
   });
   assert.deepEqual(wrongTurn, { decision: 'decline' });
   assert.equal(approvalsReceived.length, 1, 'Mismatched turn did not call onApproval');
+
+  // Request with missing threadId -> unverified -> declined immediately
+  const missingThread = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 304,
+    params: { turnId: 'turn-1', command: 'ls' },
+  });
+  assert.deepEqual(missingThread, { decision: 'decline' });
+  assert.equal(approvalsReceived.length, 1, 'Missing threadId did not call onApproval');
+
+  // Request with missing turnId -> unverified -> declined immediately
+  const missingTurn = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 305,
+    params: { threadId: 'thread-chat-1', command: 'ls' },
+  });
+  assert.deepEqual(missingTurn, { decision: 'decline' });
+  assert.equal(approvalsReceived.length, 1, 'Missing turnId did not call onApproval');
+
+  // Request with empty params (missing both) -> unverified -> declined immediately
+  const missingBoth = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 306,
+    params: {},
+  });
+  assert.deepEqual(missingBoth, { decision: 'decline' });
+  assert.equal(approvalsReceived.length, 1, 'Missing both IDs did not call onApproval');
+
+  // Protocol aliases: snake_case thread_id and turn_id are accepted when valid
+  const validSnake = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 307,
+    params: { thread_id: 'thread-chat-1', turn_id: 'turn-1', command: 'ls' },
+  });
+  assert.deepEqual(validSnake, { decision: 'accept' });
+  assert.equal(approvalsReceived.length, 2);
+
+  // Protocol aliases: conversationId alias is accepted when valid
+  const validConv = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 308,
+    params: { conversationId: 'thread-chat-1', turnId: 'turn-1', command: 'ls' },
+  });
+  assert.deepEqual(validConv, { decision: 'accept' });
+  assert.equal(approvalsReceived.length, 3);
 
   session.close();
 });
@@ -547,22 +592,16 @@ test('Pending approvals are invalidated on interrupt, close, and permission chan
     await new Promise((r) => setTimeout(r, 20));
     assert.equal(abortSignalFired, false);
 
-    await session.setPermissionMode('plan');
-    assert.equal(abortSignalFired, true, 'Changing permission mode must abort pending approval');
+    await assert.rejects(
+      session.setPermissionMode('plan'),
+      /Cannot change Codex permissions during an active turn/
+    );
+    assert.equal(abortSignalFired, true, 'Changing permission mode mid-turn must abort pending approval');
+    assert.equal(session.permissionMode, 'bypassPermissions', 'permissionMode was not mutated mid-turn');
 
     resolveApproval({ decision: 'accept' });
     const res = await handlerPromise;
     assert.deepEqual(res, { decision: 'decline' });
-
-    let calledOnApproval = false;
-    session.onApproval = async () => { calledOnApproval = true; return { decision: 'accept' }; };
-    const planRes = await fake.options.requestHandler({
-      method: 'item/commandExecution/requestApproval',
-      id: 504,
-      params: { threadId: 'thread-chat-1', turnId: 'turn-hold-3' },
-    });
-    assert.deepEqual(planRes, { decision: 'decline' });
-    assert.equal(calledOnApproval, false);
 
     session.close();
   }
@@ -635,4 +674,84 @@ test('Pipeline codexChatApproval associates thread/turn/request, clears with tur
     id: '3', method: 'item/commandExecution/requestApproval', params: {},
   });
   assert.deepEqual(resBusy, { decision: 'decline' });
+});
+
+test('codexChatApproval rejects missing or unverified thread/turn IDs', async () => {
+  const { codexChatApproval } = await import('../src/pipeline.js');
+
+  const chat = { planMode: false, pending: null, messages: [] };
+
+  // Missing both threadId and turnId
+  const resNoIds = await codexChatApproval({}, chat, {}, {
+    id: '1', method: 'item/commandExecution/requestApproval', params: {},
+  });
+  assert.deepEqual(resNoIds, { decision: 'decline' });
+
+  // Missing turnId
+  const resNoTurn = await codexChatApproval({}, chat, {}, {
+    id: '2', method: 'item/commandExecution/requestApproval', params: { threadId: 'thread-1' },
+  });
+  assert.deepEqual(resNoTurn, { decision: 'decline' });
+
+  // Missing threadId
+  const resNoThread = await codexChatApproval({}, chat, {}, {
+    id: '3', method: 'item/commandExecution/requestApproval', params: { turnId: 'turn-1' },
+  });
+  assert.deepEqual(resNoThread, { decision: 'decline' });
+});
+
+test('pipeline.setChatPlanMode coordinates with active Codex turn: invalidates pending approval and rejects mode change', async () => {
+  const { setChatPlanMode, codexChatApproval, liveEntryOf } = await import('../src/pipeline.js');
+  const { store } = await import('../src/store.js');
+
+  const task = store.addTask({ number: 88, title: 'Task', labels: [], url: 'https://x/88', closed: false }, 'hfs');
+  const chat = task.chats[0];
+  chat.planMode = false;
+
+  const fakeSession = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+  });
+
+  // Connect fake session
+  const live = liveEntryOf(task, chat);
+  live.session = fakeSession;
+
+  // Set up a pending codex approval on chat
+  const approvalPromise = codexChatApproval(task, chat, live, {
+    id: 'req-88',
+    method: 'item/commandExecution/requestApproval',
+    threadId: 'thread-88',
+    turnId: 'turn-88',
+    params: { command: 'git status' },
+  });
+
+  assert.ok(chat.pending);
+  assert.ok(String(chat.pending.id).startsWith('codex:'));
+  assert.equal(chat.pending.threadId, 'thread-88');
+  assert.equal(chat.pending.turnId, 'turn-88');
+
+  // Now user tries to toggle planMode to ON while turn is busy
+  // (We simulate busy = true on session)
+  Object.defineProperty(fakeSession, 'busy', { value: true, configurable: true });
+
+  assert.throws(
+    () => setChatPlanMode(88, chat.id, true),
+    /Wait for the Codex turn before changing plan mode/
+  );
+
+  // Verification:
+  // 1. chat.planMode was NOT changed (preserves sandbox synchronization!)
+  assert.equal(chat.planMode, false);
+  // 2. The pending approval was expired immediately
+  assert.equal(chat.pending, null);
+  const approvalResult = await approvalPromise;
+  assert.deepEqual(approvalResult, { decision: 'decline' });
+
+  // Once turn settles (busy = false), changing plan mode succeeds cleanly
+  Object.defineProperty(fakeSession, 'busy', { value: false, configurable: true });
+  setChatPlanMode(88, chat.id, true);
+  assert.equal(chat.planMode, true);
+  assert.equal(fakeSession.permissionMode, 'plan');
+
+  fakeSession.close();
 });
