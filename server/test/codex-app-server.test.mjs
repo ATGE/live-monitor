@@ -755,3 +755,62 @@ test('pipeline.setChatPlanMode coordinates with active Codex turn: invalidates p
 
   fakeSession.close();
 });
+
+test('CodexChatSession turn/steer dispatches expected params and handles lifecycle errors', async () => {
+  const fake = new FakeAppServer();
+  codexChatHooks.create = (options) => { fake.options = options; return fake; };
+
+  const session = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'plan',
+  });
+
+  // steer without turn in progress must reject
+  await assert.rejects(
+    session.steer('steering message'),
+    /There is no Codex turn to steer/
+  );
+
+  // interrupt without turn in progress must reject
+  await assert.rejects(
+    session.interrupt(),
+    /There is no Codex turn in progress/
+  );
+
+  fake.request = async (method, params) => {
+    fake.calls.push({ method, params });
+    if (method === 'thread/start') return { thread: { id: 'thread-steer-1' } };
+    if (method === 'turn/start') return { turn: { id: 'turn-steer-1', status: 'inProgress' } };
+    if (method === 'turn/steer') return { turnId: params.expectedTurnId };
+    return {};
+  };
+
+  const sendPromise = session.send('run something');
+  await new Promise((r) => setImmediate(r));
+
+  assert.equal(session.busy, true);
+  const steerResult = await session.steer('change direction');
+  assert.deepEqual(steerResult, { turnId: 'turn-steer-1' });
+
+  const steerCall = fake.calls.find((c) => c.method === 'turn/steer');
+  assert.ok(steerCall);
+  assert.equal(steerCall.params.threadId, 'thread-steer-1');
+  assert.equal(steerCall.params.expectedTurnId, 'turn-steer-1');
+  assert.deepEqual(steerCall.params.input, [{ type: 'text', text: 'change direction' }]);
+
+  // Simulate turn completion
+  fake.emit('notification', {
+    method: 'turn/completed',
+    params: { threadId: 'thread-steer-1', turn: { id: 'turn-steer-1', status: 'completed' } },
+  });
+
+  await sendPromise;
+  assert.equal(session.busy, false);
+
+  // After turn ends, steering again throws
+  await assert.rejects(
+    session.steer('too late'),
+    /There is no Codex turn to steer/
+  );
+
+  session.close();
+});
