@@ -31,7 +31,7 @@ export class CodexChatSession {
   constructor({
     machine, cwd, model = null, effort = null, resume = null, forkSession = false,
     onEvent = null, onApproval = null, idleMs = 15 * 60_000,
-    permissionMode = 'plan', command = 'codex',
+    permissionMode = 'plan', command = 'codex', mcpPolicy = null,
   } = {}) {
     this.machine = machine;
     this.cwd = cwd;
@@ -43,6 +43,7 @@ export class CodexChatSession {
     this.idleMs = idleMs;
     this.permissionMode = permissionMode;
     this.command = command;
+    this.mcpPolicy = mcpPolicy;
     this.#forkPending = Boolean(resume && forkSession);
     if (resume) this.#threadId = codexThreadId(resume);
   }
@@ -71,6 +72,8 @@ export class CodexChatSession {
     this.#closed = false;
     const client = codexChatHooks.create({
       command: this.command,
+      cwd: this.cwd,
+      mcpPolicy: this.mcpPolicy,
       requestHandler: (msg, options) => this.#approval(msg, options?.signal),
     });
     this.#client = client;

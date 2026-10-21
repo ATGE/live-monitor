@@ -5635,6 +5635,9 @@ function liveOf(task, chat) {
   const cfg = cfgOf(task);
   const chatProvider = providerFor('chat', chat.sessionId, cfg);
   if (chatProvider === 'codex') {
+    // Fail-closed MCP policy: external MCPs from user/project configs are isolated.
+    // Explicit opt-in policy: only servers declared in cfg.agents.codex.mcpServers are allowed.
+    const mcpPolicy = cfg.agents?.codex?.mcpServers ? { allowedMcpServers: cfg.agents.codex.mcpServers } : null;
     live.session = new CodexChatSession({
       machine, cwd: task.worktreePath,
       ...chatSessionTuning(task, chat, 'chat', { cfg }),
@@ -5644,6 +5647,7 @@ function liveOf(task, chat) {
       idleMs: (config.claude.chatIdleMinutes ?? 15) * 60_000,
       onEvent: (ev) => onChatEvent(task, chat, live, ev),
       onApproval: (request) => codexChatApproval(task, chat, live, request),
+      mcpPolicy,
     });
     liveChats.set(key, live);
     return live;

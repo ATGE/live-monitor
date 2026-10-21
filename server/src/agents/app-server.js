@@ -5,6 +5,7 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { prepareCodexIsolatedHome } from './codex-isolation.js';
 
 export const appServerHooks = { spawn: (cmd, args, opts) => spawn(cmd, args, opts) };
 export const CODEX_APP_SERVER_TIMEOUT_MS = 15_000;
@@ -28,11 +29,23 @@ export class CodexAppServer extends EventEmitter {
   #closed = false;
   #opening = null;
 
-  constructor({ command = 'codex', requestHandler = null, timeoutMs = CODEX_APP_SERVER_TIMEOUT_MS } = {}) {
+  constructor({
+    command = 'codex',
+    requestHandler = null,
+    timeoutMs = CODEX_APP_SERVER_TIMEOUT_MS,
+    cwd = null,
+    env = null,
+    codexHome = null,
+    mcpPolicy = null,
+  } = {}) {
     super();
     this.command = command;
     this.requestHandler = requestHandler;
     this.timeoutMs = timeoutMs;
+    this.cwd = cwd;
+    this.customEnv = env;
+    this.customCodexHome = codexHome;
+    this.mcpPolicy = mcpPolicy;
   }
 
   get alive() { return Boolean(this.#child && !this.#closed); }
@@ -45,9 +58,21 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async #connect() {
-    const child = appServerHooks.spawn(this.command, ['app-server'], {
-      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
-    });
+    let spawnEnv = this.customEnv ?? null;
+    if (!spawnEnv) {
+      if (this.customCodexHome) {
+        spawnEnv = { ...process.env, CODEX_HOME: this.customCodexHome };
+      } else if (process.env.CODEX_DISABLE_ISOLATION !== '1') {
+        const isolation = prepareCodexIsolatedHome({ cwd: this.cwd, mcpPolicy: this.mcpPolicy });
+        spawnEnv = isolation.env;
+      }
+    }
+    const spawnOpts = {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      ...(spawnEnv ? { env: spawnEnv } : {}),
+    };
+    const child = appServerHooks.spawn(this.command, ['app-server'], spawnOpts);
     this.#child = child;
     child.once('error', (e) => this.#fail(e));
     child.once('exit', (code, signal) => this.#fail(new Error(`codex app-server exited (${code ?? signal ?? 'unknown'})`)));
