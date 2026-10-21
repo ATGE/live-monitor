@@ -8,6 +8,12 @@ import { createInterface } from 'node:readline';
 
 export const appServerHooks = { spawn: (cmd, args, opts) => spawn(cmd, args, opts) };
 export const CODEX_APP_SERVER_TIMEOUT_MS = 15_000;
+export const CODEX_APPROVAL_METHODS = Object.freeze([
+  'item/commandExecution/requestApproval',
+  'item/fileChange/requestApproval',
+]);
+export const isCodexApprovalMethod = (method) => CODEX_APPROVAL_METHODS.includes(method);
+
 const decision = (method) => method === 'item/permissions/requestApproval'
   ? { permissions: {} } : method === 'item/tool/requestUserInput'
   ? { answers: {} } : method === 'mcpServer/elicitation/request'
@@ -18,6 +24,7 @@ export class CodexAppServer extends EventEmitter {
   #reader = null;
   #nextId = 0;
   #pending = new Map();
+  #approvalControllers = new Set();
   #closed = false;
   #opening = null;
 
@@ -113,22 +120,29 @@ export class CodexAppServer extends EventEmitter {
     try {
       if (typeof this.requestHandler === 'function') {
         const ctl = new AbortController();
+        this.#approvalControllers.add(ctl);
         let approvalTimer;
-        const supplied = await Promise.race([
-          Promise.resolve().then(() => this.requestHandler(msg, { signal: ctl.signal })),
-          new Promise((resolve) => {
-            approvalTimer = setTimeout(() => { ctl.abort(); resolve(null); }, 60_000);
-            approvalTimer.unref?.();
-          }),
-        ]).finally(() => clearTimeout(approvalTimer));
-        if (supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
-          // Only explicitly validated approval decisions may reach Codex.
-          if (typeof supplied.decision === 'string' && ['accept', 'decline', 'cancel'].includes(supplied.decision)
-              && /requestApproval$/.test(msg.method)) {
-            answer = { decision: supplied.decision };
-          } else if (msg.method === 'item/tool/requestUserInput' && supplied.answers && typeof supplied.answers === 'object') {
-            answer = { answers: supplied.answers };
+        try {
+          const supplied = await Promise.race([
+            Promise.resolve().then(() => this.requestHandler(msg, { signal: ctl.signal })),
+            new Promise((resolve) => {
+              approvalTimer = setTimeout(() => { ctl.abort(); resolve(null); }, 60_000);
+              approvalTimer.unref?.();
+            }),
+          ]);
+          if (!ctl.signal.aborted && supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
+            // Only explicitly validated approval decisions on allowed methods may reach Codex.
+            // Unknown methods are rejected even if the callback returned accept.
+            if (typeof supplied.decision === 'string' && ['accept', 'decline', 'cancel'].includes(supplied.decision)
+                && CODEX_APPROVAL_METHODS.includes(msg.method)) {
+              answer = { decision: supplied.decision };
+            } else if (msg.method === 'item/tool/requestUserInput' && supplied.answers && typeof supplied.answers === 'object') {
+              answer = { answers: supplied.answers };
+            }
           }
+        } finally {
+          clearTimeout(approvalTimer);
+          this.#approvalControllers.delete(ctl);
         }
       }
     } catch (e) { this.emit('request_error', new Error(`Codex approval handler failed: ${e.message}`)); }
@@ -140,6 +154,10 @@ export class CodexAppServer extends EventEmitter {
     if (this.#closed) return;
     this.#closed = true;
     for (const p of [...this.#pending.values()]) p.finish(error);
+    for (const ctl of [...this.#approvalControllers]) {
+      try { ctl.abort(error); } catch {}
+    }
+    this.#approvalControllers.clear();
     this.#reader?.close();
     this.emit('disconnected', error);
   }

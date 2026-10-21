@@ -1,9 +1,10 @@
 // Persistent Codex chat backed by App Server, not Claude's streaming SDK.
 // Exposes ChatSession's surface: send/interrupt/close/retune/plan mode.
 // Writes are still controlled by Codex sandbox and explicit UI approvals.
-import { CodexAppServer } from './app-server.js';
+import { CodexAppServer, CODEX_APPROVAL_METHODS } from './app-server.js';
 import { CODEX_SESSION_PREFIX, codexThreadId, codexEvent } from './codex.js';
 
+export { CODEX_APPROVAL_METHODS };
 export const codexChatHooks = { create: (opts) => new CodexAppServer(opts) };
 const reply = (ok, sessionId, text, counts, started, error, usage) => ({
   ok, quota: false, sessionId, resultText: ok ? text : '', toolCounts: counts,
@@ -25,6 +26,7 @@ export class CodexChatSession {
   #answerBuffer = '';
   #itemMessage = '';
   #usage = null;
+  #pendingApprovals = new Map();
 
   constructor({
     machine, cwd, model = null, effort = null, resume = null, forkSession = false,
@@ -114,16 +116,80 @@ export class CodexChatSession {
     return this.#opening;
   }
 
+  #invalidateApprovals(reason) {
+    for (const entry of this.#pendingApprovals.values()) {
+      try { entry.abort(new Error(`Codex approval cancelled: ${reason}`)); } catch {}
+    }
+    this.#pendingApprovals.clear();
+  }
+
   async #approval(msg, signal) {
     // The RPC transport declines when nothing explicitly authorizes a request.
-    if (this.permissionMode === 'plan' || !this.#pending) return { decision: 'decline' };
-    if (!/requestApproval$/.test(msg.method)) return { decision: 'decline' };
+    // In plan mode, without an active turn, or without a thread id, fail closed immediately.
+    if (this.permissionMode === 'plan' || !this.#pending || !this.#threadId) {
+      return { decision: 'decline' };
+    }
+    // Only explicitly allowed approval methods may ever be approved.
+    if (!CODEX_APPROVAL_METHODS.includes(msg.method)) {
+      return { decision: 'decline' };
+    }
+    // Thread and turn isolation: verify params match this session's thread and turn.
+    if (msg.params?.threadId && msg.params.threadId !== this.#threadId) {
+      return { decision: 'decline' };
+    }
+    if (msg.params?.turnId && this.#pending.turnId && msg.params.turnId !== this.#pending.turnId) {
+      return { decision: 'decline' };
+    }
+
+    const requestId = String(msg.id);
+    const boundTurn = this.#pending;
+    if (msg.params?.turnId && !this.#pending.turnId) {
+      this.#pending.turnId = msg.params.turnId;
+    }
+    const boundTurnId = this.#pending.turnId ?? msg.params?.turnId ?? null;
+    const boundThreadId = this.#threadId;
+
+    const approvalCtl = new AbortController();
+    const onAbort = () => approvalCtl.abort(signal?.reason ?? new Error('Approval aborted'));
+    signal?.addEventListener('abort', onAbort, { once: true });
+
+    this.#pendingApprovals.set(requestId, {
+      abort: (err) => approvalCtl.abort(err ?? new Error('Approval invalidated')),
+      boundTurn,
+      boundTurnId,
+      boundThreadId,
+    });
+
+    let answer;
     try {
-      const answer = await this.onApproval?.({
-        id: String(msg.id), method: msg.method, params: msg.params ?? {}, signal,
+      answer = await this.onApproval?.({
+        id: requestId,
+        method: msg.method,
+        params: msg.params ?? {},
+        threadId: boundThreadId,
+        turnId: boundTurnId,
+        signal: approvalCtl.signal,
       });
-      return answer?.decision === 'accept' ? { decision: 'accept' } : { decision: 'decline' };
-    } catch { return { decision: 'decline' }; }
+    } catch {
+      return { decision: 'decline' };
+    } finally {
+      this.#pendingApprovals.delete(requestId);
+      signal?.removeEventListener('abort', onAbort);
+    }
+
+    // A stale, aborted, or cross-turn/session answer must NEVER be accepted.
+    if (
+      approvalCtl.signal.aborted ||
+      this.permissionMode === 'plan' ||
+      !this.#pending ||
+      this.#pending !== boundTurn ||
+      (boundTurnId && this.#pending.turnId && this.#pending.turnId !== boundTurnId) ||
+      this.#threadId !== boundThreadId
+    ) {
+      return { decision: 'decline' };
+    }
+
+    return answer?.decision === 'accept' ? { decision: 'accept' } : { decision: 'decline' };
   }
 
   #onNotification(msg) {
@@ -174,6 +240,7 @@ export class CodexChatSession {
   }
 
   #settle(ok, error = null) {
+    this.#invalidateApprovals('turn ended');
     const pending = this.#pending;
     if (!pending) return;
     this.#pending = null;
@@ -218,6 +285,7 @@ export class CodexChatSession {
 
   async interrupt() {
     if (!this.#pending || !this.#threadId) throw new Error('There is no Codex turn in progress');
+    this.#invalidateApprovals('turn interrupted');
     await this.#client.request('turn/interrupt', { threadId: this.#threadId, turnId: this.#pending.turnId });
   }
 
@@ -239,14 +307,15 @@ export class CodexChatSession {
   async setEffort(effort) { return this.retune({ effort }); }
   async setPermissionMode(mode) {
     if (!['plan', 'bypassPermissions'].includes(mode)) throw new Error('Invalid Codex permission mode');
-    if (this.busy && mode !== this.permissionMode) throw new Error('Cannot change Codex permissions during an active turn');
     this.permissionMode = mode;
+    this.#invalidateApprovals('permissions changed');
   }
 
   close() {
     this.#stopIdle();
     if (this.#closed) return;
     this.#closed = true;
+    this.#invalidateApprovals('session closed');
     if (this.#pending) this.#settle(false, 'Codex chat session closed');
     this.#stopIdle();
     const client = this.#client;

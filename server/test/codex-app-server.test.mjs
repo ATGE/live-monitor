@@ -268,3 +268,371 @@ test('Interactive turn approval is denied when plan mode is on, and otherwise re
   })).decision, 'decline');
   session.close();
 });
+
+test('Unknown methods are rejected even if callback returns accept (App Server and Chat Session)', async () => {
+  // App Server level
+  const process = fakeProcess();
+  appServerHooks.spawn = () => process;
+  const server = new CodexAppServer({
+    requestHandler: async () => ({ decision: 'accept' }),
+    timeoutMs: 500,
+  });
+  await server.open();
+  process.write({ method: 'item/commandExecution/requestApproval', id: 101, params: {} });
+  process.write({ method: 'item/unknownAction/requestApproval', id: 102, params: {} });
+  process.write({ method: 'item/permissions/requestApproval', id: 103, params: {} });
+  process.write({ method: 'dangerous/customMethod', id: 104, params: {} });
+  await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual(process.fromClient.find((m) => m.id === 101)?.result, { decision: 'accept' });
+  assert.deepEqual(process.fromClient.find((m) => m.id === 102)?.result, { decision: 'decline' });
+  assert.deepEqual(process.fromClient.find((m) => m.id === 103)?.result, { permissions: {} });
+  assert.deepEqual(process.fromClient.find((m) => m.id === 104)?.result, { decision: 'decline' });
+  server.close();
+
+  // Chat Session level
+  const fake = new FakeAppServer();
+  codexChatHooks.create = (options) => { fake.options = options; return fake; };
+  let calledForUnknown = false;
+  const session = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+    onApproval: async (req) => {
+      if (req.method !== 'item/commandExecution/requestApproval') calledForUnknown = true;
+      return { decision: 'accept' };
+    },
+  });
+  session.send('working turn');
+  await new Promise((r) => setImmediate(r));
+
+  const resUnknown = await fake.options.requestHandler({
+    method: 'item/dangerousCommand/requestApproval', id: 201, params: { threadId: 'thread-chat-1' },
+  });
+  assert.deepEqual(resUnknown, { decision: 'decline' });
+  assert.equal(calledForUnknown, false, 'onApproval should not be invoked for unknown methods');
+
+  const resAllowed = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval', id: 202, params: { threadId: 'thread-chat-1' },
+  });
+  assert.deepEqual(resAllowed, { decision: 'accept' });
+  session.close();
+});
+
+test('Approvals are strictly associated with thread, turn and request', async () => {
+  const fake = new FakeAppServer();
+  codexChatHooks.create = (options) => { fake.options = options; return fake; };
+  const approvalsReceived = [];
+  const session = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+    onApproval: async (req) => {
+      approvalsReceived.push(req);
+      return { decision: 'accept' };
+    },
+  });
+  session.send('first turn');
+  await new Promise((r) => setImmediate(r));
+
+  // Request with matching thread and turn
+  const valid = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 301,
+    params: { threadId: 'thread-chat-1', turnId: 'turn-1', command: 'ls' },
+  });
+  assert.deepEqual(valid, { decision: 'accept' });
+  assert.equal(approvalsReceived.length, 1);
+  assert.equal(approvalsReceived[0].threadId, 'thread-chat-1');
+  assert.equal(approvalsReceived[0].turnId, 'turn-1');
+  assert.equal(approvalsReceived[0].id, '301');
+
+  // Request with mismatched threadId -> declined immediately
+  const wrongThread = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 302,
+    params: { threadId: 'wrong-thread-id', turnId: 'turn-1', command: 'ls' },
+  });
+  assert.deepEqual(wrongThread, { decision: 'decline' });
+  assert.equal(approvalsReceived.length, 1, 'Mismatched thread did not call onApproval');
+
+  // Request with mismatched turnId -> declined immediately
+  const wrongTurn = await fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 303,
+    params: { threadId: 'thread-chat-1', turnId: 'wrong-turn-999', command: 'ls' },
+  });
+  assert.deepEqual(wrongTurn, { decision: 'decline' });
+  assert.equal(approvalsReceived.length, 1, 'Mismatched turn did not call onApproval');
+
+  session.close();
+});
+
+test('Late approval from a settled turn is declined and never applies to another turn', async () => {
+  const fake = new FakeAppServer();
+  codexChatHooks.create = (options) => { fake.options = options; return fake; };
+
+  let completeTurn1;
+  fake.request = async (method, params) => {
+    fake.calls.push({ method, params });
+    if (method === 'thread/start') return { thread: { id: 'thread-chat-1' } };
+    if (method === 'turn/start') {
+      const turnId = 'turn-' + (++fake.turn);
+      if (fake.turn === 1) {
+        completeTurn1 = () => {
+          fake.emit('notification', { method: 'turn/started', params: { threadId: params.threadId, turn: { id: turnId } } });
+          fake.emit('notification', { method: 'turn/completed', params: { threadId: params.threadId, turn: { id: turnId, status: 'completed' } } });
+        };
+      } else {
+        setImmediate(() => {
+          fake.emit('notification', { method: 'turn/started', params: { threadId: params.threadId, turn: { id: turnId } } });
+          fake.emit('notification', { method: 'turn/completed', params: { threadId: params.threadId, turn: { id: turnId, status: 'completed' } } });
+        });
+      }
+      return { turn: { id: turnId, status: 'inProgress' } };
+    }
+    return {};
+  };
+
+  let resolveLateApproval;
+  const lateApprovalPromise = new Promise((resolve) => { resolveLateApproval = resolve; });
+  let approvalAborted = false;
+
+  const session = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+    onApproval: async (req) => {
+      req.signal?.addEventListener('abort', () => { approvalAborted = true; });
+      return lateApprovalPromise;
+    },
+  });
+
+  const turn1 = session.send('turn 1');
+  await new Promise((r) => setImmediate(r));
+
+  const approvalHandlerPromise = fake.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 401,
+    params: { threadId: 'thread-chat-1', turnId: 'turn-1' },
+  });
+
+  await new Promise((r) => setTimeout(r, 20));
+  assert.equal(approvalAborted, false);
+
+  completeTurn1();
+  await turn1;
+  assert.equal(approvalAborted, true, 'Turn settlement must abort pending approval');
+
+  const turn2 = session.send('turn 2');
+  await new Promise((r) => setImmediate(r));
+
+  resolveLateApproval({ decision: 'accept' });
+  const approvalResult = await approvalHandlerPromise;
+
+  assert.deepEqual(approvalResult, { decision: 'decline' });
+
+  await turn2;
+  session.close();
+});
+
+test('Pending approvals are invalidated on interrupt, close, and permission change to plan', async () => {
+  // Test Interrupt
+  {
+    const fake = new FakeAppServer();
+    codexChatHooks.create = (options) => { fake.options = options; return fake; };
+    let abortSignalFired = false;
+    let resolveApproval;
+    const approvalPromise = new Promise((r) => { resolveApproval = r; });
+
+    const session = new CodexChatSession({
+      machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+      onApproval: async (req) => {
+        req.signal.addEventListener('abort', () => { abortSignalFired = true; });
+        return approvalPromise;
+      },
+    });
+    fake.request = async (method, params) => {
+      fake.calls.push({ method, params });
+      if (method === 'thread/start') return { thread: { id: 'thread-chat-1' } };
+      if (method === 'turn/start') return { turn: { id: 'turn-hold-1', status: 'inProgress' } };
+      if (method === 'turn/interrupt') return {};
+      return {};
+    };
+
+    session.send('do something');
+    await new Promise((r) => setImmediate(r));
+
+    const handlerPromise = fake.options.requestHandler({
+      method: 'item/commandExecution/requestApproval',
+      id: 501,
+      params: { threadId: 'thread-chat-1', turnId: 'turn-hold-1' },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(abortSignalFired, false);
+
+    await session.interrupt();
+    assert.equal(abortSignalFired, true, 'Interrupt must abort pending approval signal');
+
+    resolveApproval({ decision: 'accept' });
+    const res = await handlerPromise;
+    assert.deepEqual(res, { decision: 'decline' });
+    session.close();
+  }
+
+  // Test Close
+  {
+    const fake = new FakeAppServer();
+    codexChatHooks.create = (options) => { fake.options = options; return fake; };
+    let abortSignalFired = false;
+    let resolveApproval;
+    const approvalPromise = new Promise((r) => { resolveApproval = r; });
+
+    const session = new CodexChatSession({
+      machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+      onApproval: async (req) => {
+        req.signal.addEventListener('abort', () => { abortSignalFired = true; });
+        return approvalPromise;
+      },
+    });
+    fake.request = async (method, params) => {
+      fake.calls.push({ method, params });
+      if (method === 'thread/start') return { thread: { id: 'thread-chat-1' } };
+      if (method === 'turn/start') return { turn: { id: 'turn-hold-2', status: 'inProgress' } };
+      return {};
+    };
+
+    session.send('turn hold');
+    await new Promise((r) => setImmediate(r));
+
+    const handlerPromise = fake.options.requestHandler({
+      method: 'item/fileChange/requestApproval',
+      id: 502,
+      params: { threadId: 'thread-chat-1', turnId: 'turn-hold-2' },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(abortSignalFired, false);
+
+    session.close();
+    assert.equal(abortSignalFired, true, 'Close must abort pending approval signal');
+
+    resolveApproval({ decision: 'accept' });
+    const res = await handlerPromise;
+    assert.deepEqual(res, { decision: 'decline' });
+  }
+
+  // Test Permission change
+  {
+    const fake = new FakeAppServer();
+    codexChatHooks.create = (options) => { fake.options = options; return fake; };
+    let abortSignalFired = false;
+    let resolveApproval;
+    const approvalPromise = new Promise((r) => { resolveApproval = r; });
+
+    const session = new CodexChatSession({
+      machine: { kind: 'local' }, cwd: '/repo', permissionMode: 'bypassPermissions',
+      onApproval: async (req) => {
+        req.signal.addEventListener('abort', () => { abortSignalFired = true; });
+        return approvalPromise;
+      },
+    });
+    fake.request = async (method, params) => {
+      fake.calls.push({ method, params });
+      if (method === 'thread/start') return { thread: { id: 'thread-chat-1' } };
+      if (method === 'turn/start') return { turn: { id: 'turn-hold-3', status: 'inProgress' } };
+      return {};
+    };
+
+    session.send('turn hold');
+    await new Promise((r) => setImmediate(r));
+
+    const handlerPromise = fake.options.requestHandler({
+      method: 'item/commandExecution/requestApproval',
+      id: 503,
+      params: { threadId: 'thread-chat-1', turnId: 'turn-hold-3' },
+    });
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(abortSignalFired, false);
+
+    await session.setPermissionMode('plan');
+    assert.equal(abortSignalFired, true, 'Changing permission mode must abort pending approval');
+
+    resolveApproval({ decision: 'accept' });
+    const res = await handlerPromise;
+    assert.deepEqual(res, { decision: 'decline' });
+
+    let calledOnApproval = false;
+    session.onApproval = async () => { calledOnApproval = true; return { decision: 'accept' }; };
+    const planRes = await fake.options.requestHandler({
+      method: 'item/commandExecution/requestApproval',
+      id: 504,
+      params: { threadId: 'thread-chat-1', turnId: 'turn-hold-3' },
+    });
+    assert.deepEqual(planRes, { decision: 'decline' });
+    assert.equal(calledOnApproval, false);
+
+    session.close();
+  }
+});
+
+test('Isolation between different sessions: approvals never cross session boundaries', async () => {
+  const fake1 = new FakeAppServer();
+  const fake2 = new FakeAppServer();
+  fake1.request = async (m, p) => m === 'thread/start' ? { thread: { id: 'thread-A' } } : (m === 'turn/start' ? { turn: { id: 'turn-A' } } : {});
+  fake2.request = async (m, p) => m === 'thread/start' ? { thread: { id: 'thread-B' } } : (m === 'turn/start' ? { turn: { id: 'turn-B' } } : {});
+
+  let currentFake = fake1;
+  codexChatHooks.create = (opts) => { currentFake.options = opts; return currentFake; };
+
+  const sessionA = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repoA', permissionMode: 'bypassPermissions',
+    onApproval: async () => ({ decision: 'accept' }),
+  });
+  sessionA.send('hello A');
+  await new Promise((r) => setImmediate(r));
+
+  currentFake = fake2;
+  const sessionB = new CodexChatSession({
+    machine: { kind: 'local' }, cwd: '/repoB', permissionMode: 'bypassPermissions',
+    onApproval: async () => ({ decision: 'accept' }),
+  });
+  sessionB.send('hello B');
+  await new Promise((r) => setImmediate(r));
+
+  const crossRes = await fake1.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 601,
+    params: { threadId: 'thread-B', turnId: 'turn-B' },
+  });
+  assert.deepEqual(crossRes, { decision: 'decline' });
+
+  const ownRes = await fake1.options.requestHandler({
+    method: 'item/commandExecution/requestApproval',
+    id: 602,
+    params: { threadId: 'thread-A', turnId: 'turn-A' },
+  });
+  assert.deepEqual(ownRes, { decision: 'accept' });
+
+  sessionA.close();
+  sessionB.close();
+});
+
+test('Pipeline codexChatApproval associates thread/turn/request, clears with turn, denies in plan mode', async () => {
+  const { codexChatApproval, clearsWithTurn } = await import('../src/pipeline.js');
+
+  assert.equal(clearsWithTurn({ source: 'board', id: 'codex:thread-1:turn-1:req-1:abc' }), true);
+  assert.equal(clearsWithTurn({ source: 'board', id: 'artifact:something' }), true);
+  assert.equal(clearsWithTurn({ source: 'board', id: 'board:plan-123' }), false);
+  assert.equal(clearsWithTurn({ source: 'claude', id: 'tool-use-123' }), true);
+
+  const chatInPlan = { planMode: true, pending: null, messages: [] };
+  const resPlan = await codexChatApproval({}, chatInPlan, {}, {
+    id: '1', method: 'item/commandExecution/requestApproval', params: {},
+  });
+  assert.deepEqual(resPlan, { decision: 'decline' });
+
+  const chatNormal = { planMode: false, pending: null, messages: [] };
+  const resUnknown = await codexChatApproval({}, chatNormal, {}, {
+    id: '2', method: 'unknown/method', params: {},
+  });
+  assert.deepEqual(resUnknown, { decision: 'decline' });
+
+  const chatBusy = { planMode: false, pending: { id: 'pending-q' }, messages: [] };
+  const resBusy = await codexChatApproval({}, chatBusy, {}, {
+    id: '3', method: 'item/commandExecution/requestApproval', params: {},
+  });
+  assert.deepEqual(resBusy, { decision: 'decline' });
+});
