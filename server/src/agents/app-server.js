@@ -40,6 +40,9 @@ export class CodexAppServer extends EventEmitter {
     mcpPolicy = null,
     sessionId = null,
     projectId = null,
+    taskId = null,
+    planningId = null,
+    forkFromHome = null,
   } = {}) {
     super();
     this.command = command;
@@ -51,6 +54,9 @@ export class CodexAppServer extends EventEmitter {
     this.mcpPolicy = mcpPolicy;
     this.sessionId = sessionId;
     this.projectId = projectId;
+    this.taskId = taskId;
+    this.planningId = planningId;
+    this.forkFromHome = forkFromHome;
   }
 
   get alive() { return Boolean(this.#child && !this.#closed); }
@@ -69,6 +75,9 @@ export class CodexAppServer extends EventEmitter {
       mcpPolicy: this.mcpPolicy,
       sessionId: this.sessionId,
       projectId: this.projectId,
+      taskId: this.taskId,
+      planningId: this.planningId,
+      forkFromHome: this.forkFromHome,
     });
     this.isolatedHome = isolation.codexHome;
 

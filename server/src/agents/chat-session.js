@@ -32,7 +32,8 @@ export class CodexChatSession {
     machine, cwd, model = null, effort = null, resume = null, forkSession = false,
     onEvent = null, onApproval = null, idleMs = 15 * 60_000,
     permissionMode = 'plan', command = 'codex', mcpPolicy = null,
-    sessionId = null, projectId = null,
+    sessionId = null, projectId = null, taskId = null, planningId = null,
+    codexHome = null, forkFromHome = null,
   } = {}) {
     this.machine = machine;
     this.cwd = cwd;
@@ -40,6 +41,12 @@ export class CodexChatSession {
     this.effort = effort;
     this.sessionId = resume ?? sessionId;
     this.projectId = projectId;
+    this.taskId = taskId;
+    this.planningId = planningId;
+    this.initialSessionId = sessionId;
+    this.customCodexHome = codexHome;
+    this.isolatedHome = codexHome ?? null;
+    this.forkFromHome = forkFromHome;
     this.onEvent = onEvent;
     this.onApproval = onApproval;
     this.idleMs = idleMs;
@@ -76,8 +83,12 @@ export class CodexChatSession {
       command: this.command,
       cwd: this.cwd,
       mcpPolicy: this.mcpPolicy,
-      sessionId: this.sessionId,
+      codexHome: this.isolatedHome ?? this.customCodexHome,
+      sessionId: this.initialSessionId ?? this.sessionId,
       projectId: this.projectId,
+      taskId: this.taskId,
+      planningId: this.planningId,
+      forkFromHome: this.forkFromHome,
       requestHandler: (msg, options) => this.#approval(msg, options?.signal),
     });
     this.#client = client;
@@ -92,6 +103,9 @@ export class CodexChatSession {
     });
     this.#opening = (async () => {
       await client.open();
+      if (!this.isolatedHome && client.isolatedHome) {
+        this.isolatedHome = client.isolatedHome;
+      }
       const cfg = {
         cwd: this.cwd,
         // Thread-level enum in the Codex 0.162.1 protocol uses CLI-style kebab-case;
