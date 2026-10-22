@@ -5,9 +5,16 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { prepareCodexIsolatedHome, cleanupCodexIsolatedHome } from './codex-isolation.js';
 
 export const appServerHooks = { spawn: (cmd, args, opts) => spawn(cmd, args, opts) };
 export const CODEX_APP_SERVER_TIMEOUT_MS = 15_000;
+export const CODEX_APPROVAL_METHODS = Object.freeze([
+  'item/commandExecution/requestApproval',
+  'item/fileChange/requestApproval',
+]);
+export const isCodexApprovalMethod = (method) => CODEX_APPROVAL_METHODS.includes(method);
+
 const decision = (method) => method === 'item/permissions/requestApproval'
   ? { permissions: {} } : method === 'item/tool/requestUserInput'
   ? { answers: {} } : method === 'mcpServer/elicitation/request'
@@ -18,14 +25,32 @@ export class CodexAppServer extends EventEmitter {
   #reader = null;
   #nextId = 0;
   #pending = new Map();
+  #approvalControllers = new Set();
   #closed = false;
   #opening = null;
+  isolatedHome = null;
 
-  constructor({ command = 'codex', requestHandler = null, timeoutMs = CODEX_APP_SERVER_TIMEOUT_MS } = {}) {
+  constructor({
+    command = 'codex',
+    requestHandler = null,
+    timeoutMs = CODEX_APP_SERVER_TIMEOUT_MS,
+    cwd = null,
+    env = null,
+    codexHome = null,
+    mcpPolicy = null,
+    sessionId = null,
+    projectId = null,
+  } = {}) {
     super();
     this.command = command;
     this.requestHandler = requestHandler;
     this.timeoutMs = timeoutMs;
+    this.cwd = cwd;
+    this.customEnv = env;
+    this.customCodexHome = codexHome;
+    this.mcpPolicy = mcpPolicy;
+    this.sessionId = sessionId;
+    this.projectId = projectId;
   }
 
   get alive() { return Boolean(this.#child && !this.#closed); }
@@ -38,9 +63,29 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async #connect() {
-    const child = appServerHooks.spawn(this.command, ['app-server'], {
-      stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
+    const isolation = prepareCodexIsolatedHome({
+      cwd: this.cwd,
+      customCodexHome: this.customCodexHome,
+      mcpPolicy: this.mcpPolicy,
+      sessionId: this.sessionId,
+      projectId: this.projectId,
     });
+    this.isolatedHome = isolation.codexHome;
+
+    // Fail-closed isolation: CODEX_HOME is always enforced to point to the isolated runtime directory.
+    // Overriding env or setting CODEX_DISABLE_ISOLATION cannot bypass isolation.
+    const spawnEnv = {
+      ...process.env,
+      ...(this.customEnv ?? {}),
+      CODEX_HOME: isolation.codexHome,
+    };
+
+    const spawnOpts = {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      env: spawnEnv,
+    };
+    const child = appServerHooks.spawn(this.command, ['app-server'], spawnOpts);
     this.#child = child;
     child.once('error', (e) => this.#fail(e));
     child.once('exit', (code, signal) => this.#fail(new Error(`codex app-server exited (${code ?? signal ?? 'unknown'})`)));
@@ -111,24 +156,33 @@ export class CodexAppServer extends EventEmitter {
     // For any unknown method the safest outcome is refusing to grant access.
     let answer = decision(msg.method);
     try {
-      if (typeof this.requestHandler === 'function') {
+      // Only invoke requestHandler for known, explicitly allowed approval/input methods.
+      // Unknown methods are immediately denied without dispatching to the requestHandler.
+      if (typeof this.requestHandler === 'function' && (CODEX_APPROVAL_METHODS.includes(msg.method) || msg.method === 'item/tool/requestUserInput')) {
         const ctl = new AbortController();
+        this.#approvalControllers.add(ctl);
         let approvalTimer;
-        const supplied = await Promise.race([
-          Promise.resolve().then(() => this.requestHandler(msg, { signal: ctl.signal })),
-          new Promise((resolve) => {
-            approvalTimer = setTimeout(() => { ctl.abort(); resolve(null); }, 60_000);
-            approvalTimer.unref?.();
-          }),
-        ]).finally(() => clearTimeout(approvalTimer));
-        if (supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
-          // Only explicitly validated approval decisions may reach Codex.
-          if (typeof supplied.decision === 'string' && ['accept', 'decline', 'cancel'].includes(supplied.decision)
-              && /requestApproval$/.test(msg.method)) {
-            answer = { decision: supplied.decision };
-          } else if (msg.method === 'item/tool/requestUserInput' && supplied.answers && typeof supplied.answers === 'object') {
-            answer = { answers: supplied.answers };
+        try {
+          const supplied = await Promise.race([
+            Promise.resolve().then(() => this.requestHandler(msg, { signal: ctl.signal })),
+            new Promise((resolve) => {
+              approvalTimer = setTimeout(() => { ctl.abort(); resolve(null); }, 60_000);
+              approvalTimer.unref?.();
+            }),
+          ]);
+          if (!ctl.signal.aborted && supplied && typeof supplied === 'object' && !Array.isArray(supplied)) {
+            // Only explicitly validated approval decisions on allowed methods may reach Codex.
+            // Unknown methods are rejected even if the callback returned accept.
+            if (typeof supplied.decision === 'string' && ['accept', 'decline', 'cancel'].includes(supplied.decision)
+                && CODEX_APPROVAL_METHODS.includes(msg.method)) {
+              answer = { decision: supplied.decision };
+            } else if (msg.method === 'item/tool/requestUserInput' && supplied.answers && typeof supplied.answers === 'object') {
+              answer = { answers: supplied.answers };
+            }
           }
+        } finally {
+          clearTimeout(approvalTimer);
+          this.#approvalControllers.delete(ctl);
         }
       }
     } catch (e) { this.emit('request_error', new Error(`Codex approval handler failed: ${e.message}`)); }
@@ -140,13 +194,20 @@ export class CodexAppServer extends EventEmitter {
     if (this.#closed) return;
     this.#closed = true;
     for (const p of [...this.#pending.values()]) p.finish(error);
+    for (const ctl of [...this.#approvalControllers]) {
+      try { ctl.abort(error); } catch {}
+    }
+    this.#approvalControllers.clear();
     this.#reader?.close();
     this.emit('disconnected', error);
   }
 
-  close() {
+  close({ cleanup = true } = {}) {
     if (this.#closed) return;
     this.#fail(new Error('Codex App Server closed'));
     try { this.#child?.kill('SIGTERM'); } catch { /* already exited */ }
+    if (cleanup && this.isolatedHome && !this.customCodexHome) {
+      try { cleanupCodexIsolatedHome({ codexHome: this.isolatedHome }); } catch { /* best effort */ }
+    }
   }
 }

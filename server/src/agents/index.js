@@ -44,6 +44,7 @@ export async function runTaskAgent(options, { stage = 'triage', cfg = config } =
   // Keep it read-only; hooks, external MCPs, and approval handlers from Claude
   // are intentionally not forwarded. All other task stages stay on Claude.
   if (stage === 'plan') {
+    const mcpPolicy = cfg.agents?.codex?.mcpServers ? { allowedMcpServers: cfg.agents.codex.mcpServers } : null;
     return runCodexReadOnlyPlan({
       machine: options.machine, cwd: options.cwd, prompt: options.prompt,
       resume: options.resume, forkSession: options.forkSession,
@@ -52,6 +53,7 @@ export async function runTaskAgent(options, { stage = 'triage', cfg = config } =
       modelReasoningEffort: opts.reasoningEffort || undefined,
       timeoutMs: Number.isInteger(opts.timeoutMinutes) && opts.timeoutMinutes > 0
         ? opts.timeoutMinutes * 60_000 : undefined,
+      mcpPolicy,
     });
   }
   // SDK-specific tuning is separate from the existing Claude model aliases.

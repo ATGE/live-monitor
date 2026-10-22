@@ -101,6 +101,19 @@ before(async () => {
     if (Date.now() > deadline) throw new Error(`el tablero no levantó:\n${log.join('')}`);
     await new Promise((r) => { setTimeout(r, 150); });
   }
+
+  // startPolling() runs an initial GitHub sync even with HFSMON_NO_AUTOSTART=1.
+  // Drain it before the WebSocket assertions: late store.task messages from
+  // startup are not caused by the settings POST being tested below.
+  const pollDeadline = Date.now() + 30_000;
+  for (;;) {
+    const { body } = await call('GET', '/api/tasks');
+    if (body.poll?.lastPollAt && body.poll.running === false) break;
+    if (Date.now() > pollDeadline) {
+      throw new Error(`initial GitHub poll did not finish:\n${log.join('')}`);
+    }
+    await new Promise((r) => { setTimeout(r, 150); });
+  }
 });
 
 after(async () => {

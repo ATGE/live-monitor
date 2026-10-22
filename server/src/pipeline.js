@@ -2,7 +2,7 @@ import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
 import { forkSessionForProvider, providerFor, runTaskAgent } from './agents/index.js';
-import { CodexChatSession } from './agents/chat-session.js';
+import { CodexChatSession, CODEX_APPROVAL_METHODS } from './agents/chat-session.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
 import { Mutex, Semaphore } from './exec.js';
@@ -5643,6 +5643,9 @@ function liveOf(task, chat) {
   const cfg = cfgOf(task);
   const chatProvider = providerFor('chat', chat.sessionId, cfg);
   if (chatProvider === 'codex') {
+    // Fail-closed MCP policy: external MCPs from user/project configs are isolated.
+    // Explicit opt-in policy: only servers declared in cfg.agents.codex.mcpServers are allowed.
+    const mcpPolicy = cfg.agents?.codex?.mcpServers ? { allowedMcpServers: cfg.agents.codex.mcpServers } : null;
     live.session = new CodexChatSession({
       machine, cwd: task.worktreePath,
       ...chatSessionTuning(task, chat, 'chat', { cfg }),
@@ -5652,6 +5655,9 @@ function liveOf(task, chat) {
       idleMs: (config.claude.chatIdleMinutes ?? 15) * 60_000,
       onEvent: (ev) => onChatEvent(task, chat, live, ev),
       onApproval: (request) => codexChatApproval(task, chat, live, request),
+      mcpPolicy,
+      sessionId: chat.id,
+      projectId: task.project,
     });
     liveChats.set(key, live);
     return live;
@@ -5704,8 +5710,13 @@ function liveOf(task, chat) {
  * Unknown, expired and unanswered questions are always denied. No "approve
  * for session" shortcut is exposed; every permission needs an explicit yes.
  */
-function codexChatApproval(task, chat, live, { id, method, params, signal }) {
-  if (chat.planMode || chat.pending || !/requestApproval$/.test(method)) {
+export function codexChatApproval(task, chat, live, { id, method, params = {}, threadId = null, turnId = null, signal = null } = {}) {
+  if (chat.planMode || chat.pending || !CODEX_APPROVAL_METHODS.includes(method)) {
+    return Promise.resolve({ decision: 'decline' });
+  }
+  const effectiveThreadId = threadId ?? params?.threadId ?? params?.thread_id ?? params?.conversationId ?? params?.conversation_id;
+  const effectiveTurnId = turnId ?? params?.turnId ?? params?.turn_id;
+  if (!effectiveThreadId || !effectiveTurnId) {
     return Promise.resolve({ decision: 'decline' });
   }
   const what = String(params.command ?? params.reason ?? params.itemId ?? method).slice(0, 400);
@@ -5718,16 +5729,18 @@ function codexChatApproval(task, chat, live, { id, method, params, signal }) {
     ],
   }] });
   if (!normalized.ok) return Promise.resolve({ decision: 'decline' });
-  const toolUseId = `codex:${id}:${askSuffix()}`;
+  const toolUseId = `codex:${effectiveThreadId}:${effectiveTurnId}:${id}:${askSuffix()}`;
   return new Promise((resolve) => parkPending(task, chat, live, {
     id: toolUseId, kind: 'question', source: 'board', signal,
     resolve: (answer) => {
       const choice = answer?.answers?.[question];
-      resolve({ decision: answer?.behavior === 'allow' && choice === 'Allow once' ? 'accept' : 'decline' });
+      const allowed = answer?.behavior === 'allow' && choice === 'Allow once' && !signal?.aborted;
+      resolve({ decision: allowed ? 'accept' : 'decline' });
     },
     message: {
       role: 'question', status: 'pending', source: 'board',
       toolUseId, questions: normalized.questions, ts: new Date().toISOString(),
+      threadId: effectiveThreadId, turnId: effectiveTurnId, requestId: id,
     },
   }));
 }
@@ -5739,7 +5752,12 @@ function codexChatApproval(task, chat, live, { id, method, params, signal }) {
 /** Something waiting on a person, on this chat. Resolves when they answer. */
 function parkPending(task, chat, live, { id, kind, source, message, resolve, signal = null }) {
   const stored = store.pushChat(task, chat, message);
-  chat.pending = { id, kind, source, askedAt: new Date().toISOString(), messageId: stored.id };
+  chat.pending = {
+    id, kind, source, askedAt: new Date().toISOString(), messageId: stored.id,
+    ...(message?.threadId ? { threadId: message.threadId } : {}),
+    ...(message?.turnId ? { turnId: message.turnId } : {}),
+    ...(message?.requestId ? { requestId: message.requestId } : {}),
+  };
   chat.activity = kind === 'plan' ? 'waiting for your decision on the plan…' : 'waiting for your answer…';
   live.pending.set(id, { resolve, kind, messageId: stored.id, source });
   store.touch(task);
@@ -5751,7 +5769,9 @@ function parkPending(task, chat, live, { id, kind, source, message, resolve, sig
  * (a plan keeps asking while no turn runs); a confirmation for an `Artifact`
  * call does not, because the call it holds is part of the turn that ended.
  */
-const clearsWithTurn = (pending) => pending.source !== 'board' || String(pending.id).startsWith('artifact:');
+export const clearsWithTurn = (pending) => pending.source !== 'board'
+  || String(pending.id).startsWith('artifact:')
+  || String(pending.id).startsWith('codex:');
 
 /** Nobody can answer any more: the turn ended, Detener, the process went. */
 function expirePending(task, chat, live, why) {
@@ -5919,8 +5939,13 @@ export function setChatPlanMode(issue, chatId, on) {
   if (!on && chat.pending?.kind === 'plan') throw new Error('Answer the pending plan first');
   if (!on && ['running', 'asking'].includes(chat.plan?.status)) throw new Error('A plan is running: stop it or wait for it to finish');
   const currentLive = liveChats.get(liveKey(ownerKeyOf(task), chat.id));
+  if (chat.pending && String(chat.pending.id).startsWith('codex:')) {
+    expirePending(task, chat, currentLive, 'cambio de permisos');
+  }
   if (currentLive?.session instanceof CodexChatSession && currentLive.session.busy
-    && Boolean(on) !== chat.planMode) throw new Error('Wait for the Codex turn before changing plan mode');
+    && Boolean(on) !== chat.planMode) {
+    throw new Error('Wait for the Codex turn before changing plan mode');
+  }
   chat.planMode = Boolean(on);
   liveChats.get(liveKey(ownerKeyOf(task), chat.id))?.session
     .setPermissionMode(chat.planMode ? 'plan' : 'bypassPermissions')

@@ -17,6 +17,7 @@ const DEFAULT_TIMEOUT_MS = 10 * 60_000;
 export async function runCodexReadOnlyPlan({
   machine, cwd, prompt, resume, forkSession = false, onEvent, signal,
   model, modelReasoningEffort, timeoutMs = DEFAULT_TIMEOUT_MS,
+  mcpPolicy = null,
 } = {}) {
   const started = Date.now();
   const failed = (error) => ({
@@ -46,6 +47,7 @@ export async function runCodexReadOnlyPlan({
       machine, cwd, model: model ?? null, effort: modelReasoningEffort ?? null,
       resume: resume ?? null, forkSession, permissionMode: 'plan',
       onEvent, idleMs: 0,
+      mcpPolicy,
       // All approval RPCs are rejected; no write permission can be granted.
       onApproval: async () => ({ decision: 'decline' }),
     });
