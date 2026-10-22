@@ -22,3 +22,6 @@ config.local.json
 
 # Scratch directory of tools/prompt-baseline freeze.
 server/test/fixtures/prompt-baseline/.freeze-tmp/
+
+# QA evidence from browser test runs
+server/tools/qa-evidence/
