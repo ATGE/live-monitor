@@ -673,6 +673,13 @@ console.log('TEST_RUNNER_READY');
     await page.screenshot({ path: snapT4 });
     console.log('  [PASS] Scenario T.2: Full transport Allow once validated end-to-end.');
 
+    // Wait until previous pending is completely cleared on server before next approval
+    for (let i = 0; i < 30; i++) {
+      const st = await fetch(`http://127.0.0.1:${controlPort}/chat-state`).then(r => r.json());
+      if (!st.pending) break;
+      await new Promise(r => setTimeout(r, 100));
+    }
+
     // Scenario T.3: Independent approval per request (no auto-approval leakage)
     console.log('\n=== SCENARIO T.3: Independent approval per request (Full Transport) ===');
     const transportPromiseT3 = fetch(`http://127.0.0.1:${mockServerPort}/send-approval`, {
@@ -695,6 +702,13 @@ console.log('TEST_RUNNER_READY');
     await page.waitForSelector('.qdialog', { state: 'detached', timeout: 5000 });
     console.log('  [PASS] Scenario T.3: Independent approval verified, no session persistence.');
 
+    // Wait until previous pending is completely cleared on server before T.4
+    for (let i = 0; i < 30; i++) {
+      const st = await fetch(`http://127.0.0.1:${controlPort}/chat-state`).then(r => r.json());
+      if (!st.pending) break;
+      await new Promise(r => setTimeout(r, 100));
+    }
+
     // Scenario T.4: Expiration (Interrupt lifecycle through transport)
     console.log('\n=== SCENARIO T.4: Expiration & Interrupt (Full Transport) ===');
     const transportPromiseT4 = fetch(`http://127.0.0.1:${mockServerPort}/send-approval`, {
@@ -707,7 +721,12 @@ console.log('TEST_RUNNER_READY');
       }),
     }).then(r => r.json());
 
-    await page.waitForSelector('.qdialog', { timeout: 8000 });
+    try {
+      await page.waitForSelector('.qdialog', { timeout: 10000 });
+    } catch (err) {
+      await page.screenshot({ path: path.join(EVIDENCE_DIR, 'debug-t4-failure.png') }).catch(() => {});
+      throw err;
+    }
     const stateT4 = await fetch(`http://127.0.0.1:${controlPort}/chat-state`).then(r => r.json());
     const pendingIdT4 = stateT4.pending.id;
 

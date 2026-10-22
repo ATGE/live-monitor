@@ -5646,6 +5646,15 @@ function liveOf(task, chat) {
     // Fail-closed MCP policy: external MCPs from user/project configs are isolated.
     // Explicit opt-in policy: only servers declared in cfg.agents.codex.mcpServers are allowed.
     const mcpPolicy = cfg.agents?.codex?.mcpServers ? { allowedMcpServers: cfg.agents.codex.mcpServers } : null;
+    const parentChat = chat.forkedFrom ? chatById(task, chat.forkedFrom) : null;
+    let forkFromHome = null;
+    const safeProject = String(task.project ?? 'global').replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const safeTask = String(task.id ?? task.branch ?? ownerKeyOf(task)).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    if (chat.forkPending && parentChat) {
+      const baseRuntime = process.env.CODEX_ISOLATION_DIR ?? path.join(DATA_DIR, 'codex-runtime');
+      const safeParentSession = String(parentChat.id).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      forkFromHome = path.join(baseRuntime, 'projects', safeProject, 'tasks', safeTask, 'sessions', safeParentSession);
+    }
     live.session = new CodexChatSession({
       machine, cwd: task.worktreePath,
       ...chatSessionTuning(task, chat, 'chat', { cfg }),
@@ -5657,7 +5666,9 @@ function liveOf(task, chat) {
       onApproval: (request) => codexChatApproval(task, chat, live, request),
       mcpPolicy,
       sessionId: chat.id,
+      taskId: task.id ?? task.branch ?? ownerKeyOf(task),
       projectId: task.project,
+      forkFromHome,
     });
     liveChats.set(key, live);
     return live;

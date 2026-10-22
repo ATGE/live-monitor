@@ -5,13 +5,55 @@
 // Preserves legitimate user authentication by symlinking auth.json without copying
 // secret bytes to repositories or logs.
 
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, lstatSync, realpathSync, writeFileSync, chmodSync, readlinkSync, renameSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, lstatSync, realpathSync, writeFileSync, chmodSync, readlinkSync, renameSync, readdirSync, cpSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DATA_DIR } from '../config.js';
 
 function normalizePath(p) {
   return p.replace(/\\/g, '/');
+}
+
+// Active reference tracking per isolated home to ensure cleanup of one session
+// NEVER deletes auth.json or invalidates credentials of another concurrently active session.
+const activeIsolatedHomes = new Map();
+
+export function retainCodexIsolatedHome(codexHome) {
+  if (!codexHome) return;
+  const count = activeIsolatedHomes.get(codexHome) ?? 0;
+  activeIsolatedHomes.set(codexHome, count + 1);
+}
+
+export function releaseCodexIsolatedHome(codexHome) {
+  if (!codexHome) return true;
+  const current = activeIsolatedHomes.get(codexHome);
+  if (current === undefined) return true;
+  if (current <= 1) {
+    activeIsolatedHomes.delete(codexHome);
+    return true; // Last reference released; safe to remove sensitive artifacts
+  }
+  activeIsolatedHomes.set(codexHome, current - 1);
+  return false; // Still active sessions using this runtime directory
+}
+
+export function getActiveCodexIsolatedHomesCount(codexHome) {
+  return activeIsolatedHomes.get(codexHome) ?? 0;
+}
+
+function seedFromParentHome(sourceHome, targetHome) {
+  try {
+    const entries = readdirSync(sourceHome, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name === 'auth.json' || entry.name === 'config.toml' || entry.name.startsWith('.config.toml.tmp')) {
+        continue; // auth and config are generated fresh for targetHome
+      }
+      const srcPath = path.join(sourceHome, entry.name);
+      const dstPath = path.join(targetHome, entry.name);
+      if (!existsSync(dstPath)) {
+        cpSync(srcPath, dstPath, { recursive: true });
+      }
+    }
+  } catch { /* best effort seeding */ }
 }
 
 /**
@@ -74,11 +116,26 @@ export function prepareCodexIsolatedHome({
   dataDir = null,
   sessionId = null,
   projectId = null,
+  taskId = null,
+  planningId = null,
+  forkFromHome = null,
 } = {}) {
   let targetDir = customCodexHome;
   if (!targetDir) {
     const baseRuntime = process.env.CODEX_ISOLATION_DIR ?? path.join(dataDir ?? DATA_DIR, 'codex-runtime');
-    if (sessionId) {
+    if (planningId) {
+      const safePlan = String(planningId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      targetDir = path.join(baseRuntime, 'planning', safePlan);
+    } else if (taskId) {
+      const safeProject = String(projectId ?? 'global').replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const safeTask = String(taskId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const safeSession = String(sessionId ?? 'default').replace(/[^a-zA-Z0-9_.-]/g, '_');
+      targetDir = path.join(baseRuntime, 'projects', safeProject, 'tasks', safeTask, 'sessions', safeSession);
+    } else if (projectId && sessionId) {
+      const safeProject = String(projectId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      const safeSession = String(sessionId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      targetDir = path.join(baseRuntime, 'projects', safeProject, 'sessions', safeSession);
+    } else if (sessionId) {
       const safeSession = String(sessionId).replace(/[^a-zA-Z0-9_.-]/g, '_');
       targetDir = path.join(baseRuntime, 'sessions', safeSession);
     } else if (projectId) {
@@ -93,6 +150,14 @@ export function prepareCodexIsolatedHome({
   try {
     chmodSync(targetDir, 0o700);
   } catch { /* ignore chmod error on platforms or filesystems that do not support it */ }
+
+  // Seed history/state from parent home if this session was forked
+  if (forkFromHome && existsSync(forkFromHome) && forkFromHome !== targetDir) {
+    seedFromParentHome(forkFromHome, targetDir);
+  }
+
+  // Retain active session reference count on this directory
+  retainCodexIsolatedHome(targetDir);
 
   // 1. Preserve legitimate authentication via symlink (zero copying of secret material)
   const sourceAuth = process.env.CODEX_AUTH_FILE
@@ -202,9 +267,18 @@ export function prepareCodexIsolatedHome({
 /**
  * Safely cleans up sensitive artifacts (such as the auth.json symlink)
  * from an isolated Codex runtime directory when a session terminates.
+ * Respects active session reference counts to ensure concurrent sessions
+ * sharing a directory are NEVER stripped of their credentials.
  */
-export function cleanupCodexIsolatedHome({ codexHome = null, removeAuth = true } = {}) {
+export function cleanupCodexIsolatedHome({ codexHome = null, removeAuth = true, force = false } = {}) {
   if (!codexHome) return;
+  if (!force) {
+    const canClean = releaseCodexIsolatedHome(codexHome);
+    if (!canClean) {
+      // Other sessions are still actively using this codexHome.
+      return;
+    }
+  }
   if (removeAuth) {
     const targetAuth = path.join(codexHome, 'auth.json');
     try {
