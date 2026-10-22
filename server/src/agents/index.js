@@ -54,6 +54,9 @@ export async function runTaskAgent(options, { stage = 'triage', cfg = config } =
       timeoutMs: Number.isInteger(opts.timeoutMinutes) && opts.timeoutMinutes > 0
         ? opts.timeoutMinutes * 60_000 : undefined,
       mcpPolicy,
+      planningId: options.planningId,
+      taskId: options.taskId,
+      projectId: options.projectId,
     });
   }
   // SDK-specific tuning is separate from the existing Claude model aliases.

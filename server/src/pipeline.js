@@ -3326,6 +3326,9 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
     const common = {
       machine, cwd: task.worktreePath, ...tune, maxTurns: 30, onEvent,
       canUseTool: taskCanUseTool(task, stage), hooks: ghGateHooks(task, stage),
+      planningId: `plan-${task.project}-${task.id ?? task.branch}-${Date.now()}`,
+      taskId: task.id ?? task.branch,
+      projectId: task.project,
     };
 
     let result = null;
