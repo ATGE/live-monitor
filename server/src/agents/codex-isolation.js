@@ -5,7 +5,7 @@
 // Preserves legitimate user authentication by symlinking auth.json without copying
 // secret bytes to repositories or logs.
 
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, lstatSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, lstatSync, realpathSync, writeFileSync, chmodSync, readlinkSync, renameSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DATA_DIR } from '../config.js';
@@ -59,16 +59,40 @@ export function auditCodexMcpConfiguration({ cwd = null, userCodexHome = null } 
  * Prepares an isolated CODEX_HOME directory for Codex App Server execution.
  * - Enforces fail-closed isolation so no external MCPs are loaded by default.
  * - Symlinks auth.json so legitimate credentials remain valid without copying bytes.
- * - Explicitly marks the active project/worktree untrusted in the isolated config
+ * - Validates existing symlink target to prevent pointing to stale or hijacked auth files.
+ * - Explicitly marks active project/worktree paths untrusted in the isolated config
  *   so repository-level .codex/config.toml cannot inject MCPs or hooks.
+ * - Preserves existing untrusted project entries across concurrent or sequential setups.
+ * - Writes config.toml atomically to avoid race conditions during concurrent reads.
+ * - Supports per-project and per-session runtime directory partitioning.
  * - Supports explicit opt-in policy via mcpPolicy.allowedMcpServers if configured.
  */
-export function prepareCodexIsolatedHome({ cwd = null, customCodexHome = null, mcpPolicy = null, dataDir = null } = {}) {
-  const targetDir = customCodexHome
-    ?? process.env.CODEX_ISOLATION_DIR
-    ?? path.join(dataDir ?? DATA_DIR, 'codex-runtime');
+export function prepareCodexIsolatedHome({
+  cwd = null,
+  customCodexHome = null,
+  mcpPolicy = null,
+  dataDir = null,
+  sessionId = null,
+  projectId = null,
+} = {}) {
+  let targetDir = customCodexHome;
+  if (!targetDir) {
+    const baseRuntime = process.env.CODEX_ISOLATION_DIR ?? path.join(dataDir ?? DATA_DIR, 'codex-runtime');
+    if (sessionId) {
+      const safeSession = String(sessionId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      targetDir = path.join(baseRuntime, 'sessions', safeSession);
+    } else if (projectId) {
+      const safeProject = String(projectId).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      targetDir = path.join(baseRuntime, 'projects', safeProject);
+    } else {
+      targetDir = baseRuntime;
+    }
+  }
 
   mkdirSync(targetDir, { recursive: true, mode: 0o700 });
+  try {
+    chmodSync(targetDir, 0o700);
+  } catch { /* ignore chmod error on platforms or filesystems that do not support it */ }
 
   // 1. Preserve legitimate authentication via symlink (zero copying of secret material)
   const sourceAuth = process.env.CODEX_AUTH_FILE
@@ -77,18 +101,65 @@ export function prepareCodexIsolatedHome({ cwd = null, customCodexHome = null, m
 
   const targetAuth = path.join(targetDir, 'auth.json');
   if (existsSync(sourceAuth)) {
+    let resolvedSource = sourceAuth;
+    try {
+      resolvedSource = realpathSync(sourceAuth);
+    } catch { /* use raw sourceAuth if realpath fails */ }
+
+    const stat = lstatSync(targetAuth, { throwIfNoEntry: false });
+    let needsRelink = true;
+    if (stat) {
+      if (stat.isSymbolicLink()) {
+        try {
+          const currentDest = readlinkSync(targetAuth);
+          let resolvedCurrent = currentDest;
+          try {
+            resolvedCurrent = realpathSync(targetAuth);
+          } catch { /* broken symlink */ }
+          if (currentDest === sourceAuth || resolvedCurrent === resolvedSource) {
+            needsRelink = false;
+          }
+        } catch { /* error inspecting link */ }
+      }
+      if (needsRelink) {
+        rmSync(targetAuth, { force: true });
+      }
+    }
+    if (needsRelink) {
+      symlinkSync(sourceAuth, targetAuth);
+    }
+  } else {
+    // If sourceAuth does not exist, clean up any stale targetAuth
     const stat = lstatSync(targetAuth, { throwIfNoEntry: false });
     if (stat) {
-      if (!stat.isSymbolicLink()) {
-        rmSync(targetAuth, { force: true });
-        symlinkSync(sourceAuth, targetAuth);
-      }
-    } else {
-      symlinkSync(sourceAuth, targetAuth);
+      rmSync(targetAuth, { force: true });
     }
   }
 
   // 2. Generate isolated config.toml with fail-closed MCP policy
+  const untrustedProjects = new Set();
+  const targetConfig = path.join(targetDir, 'config.toml');
+
+  // If config.toml already exists, preserve previously registered untrusted projects
+  if (existsSync(targetConfig)) {
+    try {
+      const prevContent = readFileSync(targetConfig, 'utf8');
+      const projMatches = prevContent.matchAll(/^\[projects\."([^"]+)"\]\s*\ntrust_level\s*=\s*"untrusted"/gm);
+      for (const m of projMatches) {
+        untrustedProjects.add(m[1]);
+      }
+    } catch { /* ignore read errors */ }
+  }
+
+  if (cwd) {
+    const normCwd = normalizePath(cwd);
+    untrustedProjects.add(normCwd);
+    try {
+      const realCwd = normalizePath(realpathSync(cwd));
+      if (realCwd) untrustedProjects.add(realCwd);
+    } catch { /* if cwd does not yet exist or is virtual */ }
+  }
+
   const configLines = [
     '# Generated by Live Monitor Codex fail-closed isolation policy.',
     '# Prevents external MCP servers from user or project configs from bypassing board controls.',
@@ -96,15 +167,8 @@ export function prepareCodexIsolatedHome({ cwd = null, customCodexHome = null, m
     '',
   ];
 
-  if (cwd) {
-    const normCwd = normalizePath(cwd);
-    configLines.push(`[projects."${normCwd}"]`, 'trust_level = "untrusted"', '');
-    try {
-      const realCwd = normalizePath(realpathSync(cwd));
-      if (realCwd !== normCwd) {
-        configLines.push(`[projects."${realCwd}"]`, 'trust_level = "untrusted"', '');
-      }
-    } catch { /* if cwd does not yet exist or is virtual */ }
+  for (const proj of untrustedProjects) {
+    configLines.push(`[projects."${proj}"]`, 'trust_level = "untrusted"', '');
   }
 
   // If specific MCP servers are explicitly authorized via policy, configure only them
@@ -123,12 +187,31 @@ export function prepareCodexIsolatedHome({ cwd = null, customCodexHome = null, m
     }
   }
 
-  const targetConfig = path.join(targetDir, 'config.toml');
-  writeFileSync(targetConfig, configLines.join('\n'), 'utf8');
+  // Atomic file write using renameSync to prevent race conditions during concurrent reads
+  const tmpConfig = path.join(targetDir, `.config.toml.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`);
+  writeFileSync(tmpConfig, configLines.join('\n'), 'utf8');
+  renameSync(tmpConfig, targetConfig);
 
   return {
     codexHome: targetDir,
     configPath: targetConfig,
     env: { ...process.env, CODEX_HOME: targetDir },
   };
+}
+
+/**
+ * Safely cleans up sensitive artifacts (such as the auth.json symlink)
+ * from an isolated Codex runtime directory when a session terminates.
+ */
+export function cleanupCodexIsolatedHome({ codexHome = null, removeAuth = true } = {}) {
+  if (!codexHome) return;
+  if (removeAuth) {
+    const targetAuth = path.join(codexHome, 'auth.json');
+    try {
+      const stat = lstatSync(targetAuth, { throwIfNoEntry: false });
+      if (stat) {
+        rmSync(targetAuth, { force: true });
+      }
+    } catch { /* best effort cleanup */ }
+  }
 }

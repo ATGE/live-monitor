@@ -5,7 +5,7 @@
 import { EventEmitter } from 'node:events';
 import { spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import { prepareCodexIsolatedHome } from './codex-isolation.js';
+import { prepareCodexIsolatedHome, cleanupCodexIsolatedHome } from './codex-isolation.js';
 
 export const appServerHooks = { spawn: (cmd, args, opts) => spawn(cmd, args, opts) };
 export const CODEX_APP_SERVER_TIMEOUT_MS = 15_000;
@@ -28,6 +28,7 @@ export class CodexAppServer extends EventEmitter {
   #approvalControllers = new Set();
   #closed = false;
   #opening = null;
+  isolatedHome = null;
 
   constructor({
     command = 'codex',
@@ -37,6 +38,8 @@ export class CodexAppServer extends EventEmitter {
     env = null,
     codexHome = null,
     mcpPolicy = null,
+    sessionId = null,
+    projectId = null,
   } = {}) {
     super();
     this.command = command;
@@ -46,6 +49,8 @@ export class CodexAppServer extends EventEmitter {
     this.customEnv = env;
     this.customCodexHome = codexHome;
     this.mcpPolicy = mcpPolicy;
+    this.sessionId = sessionId;
+    this.projectId = projectId;
   }
 
   get alive() { return Boolean(this.#child && !this.#closed); }
@@ -58,19 +63,27 @@ export class CodexAppServer extends EventEmitter {
   }
 
   async #connect() {
-    let spawnEnv = this.customEnv ?? null;
-    if (!spawnEnv) {
-      if (this.customCodexHome) {
-        spawnEnv = { ...process.env, CODEX_HOME: this.customCodexHome };
-      } else if (process.env.CODEX_DISABLE_ISOLATION !== '1') {
-        const isolation = prepareCodexIsolatedHome({ cwd: this.cwd, mcpPolicy: this.mcpPolicy });
-        spawnEnv = isolation.env;
-      }
-    }
+    const isolation = prepareCodexIsolatedHome({
+      cwd: this.cwd,
+      customCodexHome: this.customCodexHome,
+      mcpPolicy: this.mcpPolicy,
+      sessionId: this.sessionId,
+      projectId: this.projectId,
+    });
+    this.isolatedHome = isolation.codexHome;
+
+    // Fail-closed isolation: CODEX_HOME is always enforced to point to the isolated runtime directory.
+    // Overriding env or setting CODEX_DISABLE_ISOLATION cannot bypass isolation.
+    const spawnEnv = {
+      ...process.env,
+      ...(this.customEnv ?? {}),
+      CODEX_HOME: isolation.codexHome,
+    };
+
     const spawnOpts = {
       stdio: ['pipe', 'pipe', 'pipe'],
       windowsHide: true,
-      ...(spawnEnv ? { env: spawnEnv } : {}),
+      env: spawnEnv,
     };
     const child = appServerHooks.spawn(this.command, ['app-server'], spawnOpts);
     this.#child = child;
@@ -143,7 +156,9 @@ export class CodexAppServer extends EventEmitter {
     // For any unknown method the safest outcome is refusing to grant access.
     let answer = decision(msg.method);
     try {
-      if (typeof this.requestHandler === 'function') {
+      // Only invoke requestHandler for known, explicitly allowed approval/input methods.
+      // Unknown methods are immediately denied without dispatching to the requestHandler.
+      if (typeof this.requestHandler === 'function' && (CODEX_APPROVAL_METHODS.includes(msg.method) || msg.method === 'item/tool/requestUserInput')) {
         const ctl = new AbortController();
         this.#approvalControllers.add(ctl);
         let approvalTimer;
@@ -187,9 +202,12 @@ export class CodexAppServer extends EventEmitter {
     this.emit('disconnected', error);
   }
 
-  close() {
+  close({ cleanup = true } = {}) {
     if (this.#closed) return;
     this.#fail(new Error('Codex App Server closed'));
     try { this.#child?.kill('SIGTERM'); } catch { /* already exited */ }
+    if (cleanup && this.isolatedHome && !this.customCodexHome) {
+      try { cleanupCodexIsolatedHome({ codexHome: this.isolatedHome }); } catch { /* best effort */ }
+    }
   }
 }

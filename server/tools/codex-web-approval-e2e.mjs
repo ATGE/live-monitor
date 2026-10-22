@@ -206,7 +206,11 @@ srv.listen(port, '127.0.0.1', () => {
   }));
 
   writeFileSync(path.join(dataDir, 'settings.json'), JSON.stringify({
-    upgrade: { skipped: '0.3.306' },
+    upgrade: {
+      snoozedUntil: '2099-01-01T00:00:00.000Z',
+      skipped: '999.999.999',
+      seen: '999.999.999',
+    },
   }));
 
   writeFileSync(path.join(dataDir, 'tasks.json'), JSON.stringify({
@@ -443,6 +447,14 @@ console.log('TEST_RUNNER_READY');
     await page.waitForLoadState('networkidle');
 
     console.log('  Opening chat panel for Issue #1...');
+    const modalBackdrop = page.locator('.modal-backdrop');
+    if ((await modalBackdrop.count()) > 0 && (await modalBackdrop.first().isVisible())) {
+      const dismissBtn = page.locator('.modal-actions button, button:has-text("Más tarde"), button:has-text("Later"), button:has-text("Entendido")').first();
+      if (await dismissBtn.isVisible()) {
+        await dismissBtn.click();
+        await page.waitForTimeout(300);
+      }
+    }
     const chatBtn = page.locator('button.tcw-chat');
     await chatBtn.waitFor({ state: 'visible', timeout: 8000 });
     await chatBtn.click();

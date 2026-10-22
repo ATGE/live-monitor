@@ -5648,6 +5648,8 @@ function liveOf(task, chat) {
       onEvent: (ev) => onChatEvent(task, chat, live, ev),
       onApproval: (request) => codexChatApproval(task, chat, live, request),
       mcpPolicy,
+      sessionId: chat.id,
+      projectId: task.project,
     });
     liveChats.set(key, live);
     return live;

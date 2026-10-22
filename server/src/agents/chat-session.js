@@ -32,12 +32,14 @@ export class CodexChatSession {
     machine, cwd, model = null, effort = null, resume = null, forkSession = false,
     onEvent = null, onApproval = null, idleMs = 15 * 60_000,
     permissionMode = 'plan', command = 'codex', mcpPolicy = null,
+    sessionId = null, projectId = null,
   } = {}) {
     this.machine = machine;
     this.cwd = cwd;
     this.model = model;
     this.effort = effort;
-    this.sessionId = resume;
+    this.sessionId = resume ?? sessionId;
+    this.projectId = projectId;
     this.onEvent = onEvent;
     this.onApproval = onApproval;
     this.idleMs = idleMs;
@@ -74,6 +76,8 @@ export class CodexChatSession {
       command: this.command,
       cwd: this.cwd,
       mcpPolicy: this.mcpPolicy,
+      sessionId: this.sessionId,
+      projectId: this.projectId,
       requestHandler: (msg, options) => this.#approval(msg, options?.signal),
     });
     this.#client = client;
@@ -190,7 +194,7 @@ export class CodexChatSession {
       this.permissionMode === 'plan' ||
       !this.#pending ||
       this.#pending !== boundTurn ||
-      (boundTurnId && this.#pending.turnId && this.#pending.turnId !== boundTurnId) ||
+      this.#pending.turnId !== boundTurnId ||
       this.#threadId !== boundThreadId
     ) {
       return { decision: 'decline' };
