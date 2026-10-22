@@ -634,7 +634,14 @@ test('Regression: Planificaciones simultáneas sin contaminación de configuraci
 
 test('Regression: Cleanup sin afectar otras sesiones activas que comparten o tienen runtimes dedicados', () => {
   const tmp = tempDir('codex-reg-cleanup-');
+  const prevAuthEnv = process.env.CODEX_AUTH_FILE;
   try {
+    const fakeAuthDir = path.join(tmp, 'fake-auth');
+    mkdirSync(fakeAuthDir, { recursive: true });
+    const fakeAuth = path.join(fakeAuthDir, 'auth.json');
+    writeFileSync(fakeAuth, JSON.stringify({ token: 'test-token' }));
+    process.env.CODEX_AUTH_FILE = fakeAuth;
+
     const session1 = prepareCodexIsolatedHome({ dataDir: tmp, sessionId: 'session-alpha' });
     const session2 = prepareCodexIsolatedHome({ dataDir: tmp, sessionId: 'session-beta' });
 
@@ -663,6 +670,8 @@ test('Regression: Cleanup sin afectar otras sesiones activas que comparten o tie
     assert.equal(getActiveCodexIsolatedHomesCount(shared), 0);
     assert.ok(!existsSync(path.join(shared, 'auth.json')), 'Shared home auth.json removed only after last reference released');
   } finally {
+    if (prevAuthEnv !== undefined) process.env.CODEX_AUTH_FILE = prevAuthEnv;
+    else delete process.env.CODEX_AUTH_FILE;
     rmSync(tmp, { recursive: true, force: true });
   }
 });
