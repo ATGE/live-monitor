@@ -1,7 +1,8 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
-import { runTaskAgent } from './agents/index.js';
+import { providerFor, runTaskAgent } from './agents/index.js';
+import { CodexChatSession, CODEX_APPROVAL_METHODS } from './agents/chat-session.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
 import { Mutex, Semaphore } from './exec.js';
@@ -5588,6 +5589,10 @@ const unknownOwner = (key) => (typeof key === 'string' && isHolderKey(key)
  */
 export function chatSessionTuning(task, chat, role, { stage = role, cfg = cfgOf(task) } = {}) {
   const t = tunedSession(task, role, { stage, cfg, record: false });
+  if (role === 'chat' && cfg.agents?.phases?.chat === 'codex') {
+    // Never forward Claude model aliases or Claude thinking to Codex.
+    return { model: cfg.agents.codex?.model || null, effort: cfg.agents.codex?.reasoningEffort || null };
+  }
   if (chat?.model) t.model = chat.model;
   if (chat?.effort === 'auto') delete t.effort;
   else if (chat?.effort) t.effort = chat.effort;
@@ -5613,6 +5618,7 @@ export function chatSessionTuning(task, chat, role, { stage = role, cfg = cfgOf(
  */
 export function chatEffectiveEffort(task, chat) {
   try {
+    if (cfgOf(task).agents?.phases?.chat === 'codex') return cfgOf(task).agents.codex?.reasoningEffort ?? null;
     const t = chatSessionTuning(task, chat, 'chat');
     return t.effort ? (clampEffort(t.model, t.effort, t.available) ?? null) : null;
   } catch { return null; }
@@ -5627,6 +5633,38 @@ function liveOf(task, chat) {
   migrateChat(chat);
   const machine = machineOf(task);
   const cfg = cfgOf(task);
+  const chatProvider = providerFor('chat', chat.sessionId, cfg);
+  if (chatProvider === 'codex') {
+    // Fail-closed MCP policy: external MCPs from user/project configs are isolated.
+    // Explicit opt-in policy: only servers declared in cfg.agents.codex.mcpServers are allowed.
+    const mcpPolicy = cfg.agents?.codex?.mcpServers ? { allowedMcpServers: cfg.agents.codex.mcpServers } : null;
+    const parentChat = chat.forkedFrom ? chatById(task, chat.forkedFrom) : null;
+    let forkFromHome = null;
+    const safeProject = String(task.project ?? 'global').replace(/[^a-zA-Z0-9_.-]/g, '_');
+    const safeTask = String(task.id ?? task.branch ?? ownerKeyOf(task)).replace(/[^a-zA-Z0-9_.-]/g, '_');
+    if (chat.forkPending && parentChat) {
+      const baseRuntime = process.env.CODEX_ISOLATION_DIR ?? path.join(DATA_DIR, 'codex-runtime');
+      const safeParentSession = String(parentChat.id).replace(/[^a-zA-Z0-9_.-]/g, '_');
+      forkFromHome = path.join(baseRuntime, 'projects', safeProject, 'tasks', safeTask, 'sessions', safeParentSession);
+    }
+    live.session = new CodexChatSession({
+      machine, cwd: task.worktreePath,
+      ...chatSessionTuning(task, chat, 'chat', { cfg }),
+      resume: chat.sessionId ?? null,
+      forkSession: chat.forkPending === true,
+      permissionMode: chat.planMode ? 'plan' : 'bypassPermissions',
+      idleMs: (config.claude.chatIdleMinutes ?? 15) * 60_000,
+      onEvent: (ev) => onChatEvent(task, chat, live, ev),
+      onApproval: (request) => codexChatApproval(task, chat, live, request),
+      mcpPolicy,
+      sessionId: chat.id,
+      taskId: task.id ?? task.branch ?? ownerKeyOf(task),
+      projectId: task.project,
+      forkFromHome,
+    });
+    liveChats.set(key, live);
+    return live;
+  }
   live.session = new ChatSession({
     machine,
     cwd: task.worktreePath,
@@ -5670,6 +5708,46 @@ function liveOf(task, chat) {
   return live;
 }
 
+/**
+ * Reuse the current board question UI for App Server command/file approval.
+ * Unknown, expired and unanswered questions are always denied. No "approve
+ * for session" shortcut is exposed; every permission needs an explicit yes.
+ */
+export function codexChatApproval(task, chat, live, { id, method, params = {}, threadId = null, turnId = null, signal = null } = {}) {
+  if (chat.planMode || chat.pending || !CODEX_APPROVAL_METHODS.includes(method)) {
+    return Promise.resolve({ decision: 'decline' });
+  }
+  const effectiveThreadId = threadId ?? params?.threadId ?? params?.thread_id ?? params?.conversationId ?? params?.conversation_id;
+  const effectiveTurnId = turnId ?? params?.turnId ?? params?.turn_id;
+  if (!effectiveThreadId || !effectiveTurnId) {
+    return Promise.resolve({ decision: 'decline' });
+  }
+  const what = String(params.command ?? params.reason ?? params.itemId ?? method).slice(0, 400);
+  const question = `Codex requests permission to execute: ${what}. Allow this one action?`;
+  const normalized = normalizeQuestions({ questions: [{
+    header: 'Codex', question,
+    options: [
+      { label: 'Deny', description: 'Keep the action blocked.' },
+      { label: 'Allow once', description: 'Approve only this specific request.' },
+    ],
+  }] });
+  if (!normalized.ok) return Promise.resolve({ decision: 'decline' });
+  const toolUseId = `codex:${effectiveThreadId}:${effectiveTurnId}:${id}:${askSuffix()}`;
+  return new Promise((resolve) => parkPending(task, chat, live, {
+    id: toolUseId, kind: 'question', source: 'board', signal,
+    resolve: (answer) => {
+      const choice = answer?.answers?.[question];
+      const allowed = answer?.behavior === 'allow' && choice === 'Allow once' && !signal?.aborted;
+      resolve({ decision: allowed ? 'accept' : 'decline' });
+    },
+    message: {
+      role: 'question', status: 'pending', source: 'board',
+      toolUseId, questions: normalized.questions, ts: new Date().toISOString(),
+      threadId: effectiveThreadId, turnId: effectiveTurnId, requestId: id,
+    },
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // The tools that need a person: a question from the model, a plan to approve,
 // and the board's own question when a plan task runs out of retries.
@@ -5677,7 +5755,12 @@ function liveOf(task, chat) {
 /** Something waiting on a person, on this chat. Resolves when they answer. */
 function parkPending(task, chat, live, { id, kind, source, message, resolve, signal = null }) {
   const stored = store.pushChat(task, chat, message);
-  chat.pending = { id, kind, source, askedAt: new Date().toISOString(), messageId: stored.id };
+  chat.pending = {
+    id, kind, source, askedAt: new Date().toISOString(), messageId: stored.id,
+    ...(message?.threadId ? { threadId: message.threadId } : {}),
+    ...(message?.turnId ? { turnId: message.turnId } : {}),
+    ...(message?.requestId ? { requestId: message.requestId } : {}),
+  };
   chat.activity = kind === 'plan' ? 'waiting for your decision on the plan…' : 'waiting for your answer…';
   live.pending.set(id, { resolve, kind, messageId: stored.id, source });
   store.touch(task);
@@ -5689,7 +5772,9 @@ function parkPending(task, chat, live, { id, kind, source, message, resolve, sig
  * (a plan keeps asking while no turn runs); a confirmation for an `Artifact`
  * call does not, because the call it holds is part of the turn that ended.
  */
-const clearsWithTurn = (pending) => pending.source !== 'board' || String(pending.id).startsWith('artifact:');
+export const clearsWithTurn = (pending) => pending.source !== 'board'
+  || String(pending.id).startsWith('artifact:')
+  || String(pending.id).startsWith('codex:');
 
 /** Nobody can answer any more: the turn ended, Detener, the process went. */
 function expirePending(task, chat, live, why) {
@@ -5856,6 +5941,14 @@ export function setChatPlanMode(issue, chatId, on) {
   migrateChat(chat);
   if (!on && chat.pending?.kind === 'plan') throw new Error('Answer the pending plan first');
   if (!on && ['running', 'asking'].includes(chat.plan?.status)) throw new Error('A plan is running: stop it or wait for it to finish');
+  const currentLive = liveChats.get(liveKey(ownerKeyOf(task), chat.id));
+  if (chat.pending && String(chat.pending.id).startsWith('codex:')) {
+    expirePending(task, chat, currentLive, 'cambio de permisos');
+  }
+  if (currentLive?.session instanceof CodexChatSession && currentLive.session.busy
+    && Boolean(on) !== chat.planMode) {
+    throw new Error('Wait for the Codex turn before changing plan mode');
+  }
   chat.planMode = Boolean(on);
   liveChats.get(liveKey(ownerKeyOf(task), chat.id))?.session
     .setPermissionMode(chat.planMode ? 'plan' : 'bypassPermissions')
@@ -7148,7 +7241,7 @@ export function sendChat(issue, chatId, text, attachments = []) {
   // And the same out of quota. Deliberately *not* queued: a message you typed
   // now must not reach a model by itself three hours from now, when what you
   // were asking about has moved on. It stays in the panel with the reason.
-  if (quotaHoldsNewWork()) {
+  if (quotaHoldsNewWork() && providerFor('chat', chat.sessionId, cfgOf(task)) === 'claude') {
     store.addChat(task, chat.id, 'assistant',
       `⏳ Quota exhausted: this message was not sent. The account comes back ${describeResume(quotaHold())}; send it again then.`);
     store.touch(task);
@@ -7163,6 +7256,12 @@ export function sendChat(issue, chatId, text, attachments = []) {
   // commands do not reach a session driven through the SDK, so typing one just
   // asked the model to do something it cannot do to itself.
   const command = text.match(/^\/model\b\s*(.*)$/i);
+  if (command && cfgOf(task).agents?.phases?.chat === 'codex') {
+    store.addChat(task, chat.id, 'assistant',
+      'Codex model selection is configured with agents.codex.model in config.local.json; the Claude /model selector is unavailable in Codex chats.');
+    store.touch(task);
+    return;
+  }
   if (command) {
     handleModelCommand(task, chat, command[1].trim());
     return;
@@ -7182,6 +7281,18 @@ export function sendChat(issue, chatId, text, attachments = []) {
   const planRunning = ['running', 'asking'].includes(chat.plan?.status);
   const lk = liveKey(ownerKeyOf(task), chat.id);
   if (planRunning || starting.has(lk) || (chat.busy && liveChats.get(lk)?.session.alive)) {
+    // Codex has native mid-turn steer. Keep the existing queue if the turn
+    // completes before the steer arrives, or if it includes attachments.
+    const active = liveChats.get(lk)?.session;
+    if (!planRunning && !starting.has(lk) && active instanceof CodexChatSession
+      && active.busy && !attachments.length && !chat.pending) {
+      store.updateChat(task, chat, message, { patch: { delivery: 'pending' } });
+      active.steer(text).then(
+        () => markDelivery(task, chat, message.id, 'inline'),
+        () => { leaveNote(chat, text, message.id, attachments); markDelivery(task, chat, message.id, 'pending'); },
+      );
+      return;
+    }
     leaveNote(chat, text, message.id, attachments);
     store.updateChat(task, chat, message, { patch: { delivery: 'pending' } });
     return;
@@ -7607,6 +7718,9 @@ export function setChatModel(issue, chatId, model, effort, thinking) {
   const chat = chatById(task, chatId);
   if (!chat) throw new Error((isHolder(task) ? `The project chat has no such chat` : `Task #${issue} has no such chat`));
   const cfg = cfgOf(task);
+  if (cfg.agents?.phases?.chat === 'codex') {
+    throw new Error('Codex chat model/effort is configured under agents.codex in config.local.json; Claude model choices do not apply.');
+  }
   const available = cfg.claude.available ?? [];
   const allowed = available.map((m) => m.id);
   if (model && !allowed.includes(model)) {

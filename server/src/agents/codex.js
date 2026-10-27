@@ -55,8 +55,10 @@ export function codexEvent(event, onEvent, counts) {
       name = 'Bash';
       input = String(item.command ?? '').slice(0, 300);
       args = { command: item.command ?? '' };
-      output = item.aggregated_output ?? '';
-      ok = completed && item.status !== 'failed' && item.exit_code === 0;
+      // SDK events use snake_case; App Server JSON-RPC uses camelCase.
+      output = item.aggregatedOutput ?? item.aggregated_output ?? '';
+      ok = item.status !== 'failed' && item.status !== 'declined'
+        && (item.exitCode ?? item.exit_code ?? 0) === 0;
       break;
     case 'file_change':
       name = 'Edit';

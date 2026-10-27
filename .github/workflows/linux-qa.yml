@@ -1,0 +1,38 @@
+name: Node/Linux QA
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/e*-codex-*'
+  pull_request:
+    branches:
+      - main
+      - 'feat/e*-codex-*'
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            web/package-lock.json
+      - name: Install server
+        run: npm ci --prefix server
+      - name: Install web
+        run: npm ci --prefix web
+      - name: Build frontend
+        run: npm run build --prefix web
+      - name: Codex adapter and App Server tests
+        run: node --test server/test/codex-provider.test.mjs server/test/codex-app-server.test.mjs server/test/codex-status.test.mjs server/test/codex-smoke.test.mjs
+      - name: Full regression suite
+        run: node --test --test-concurrency=2 server/test/*.test.mjs

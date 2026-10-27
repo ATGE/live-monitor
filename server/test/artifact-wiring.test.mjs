@@ -1,7 +1,7 @@
 // The Artifact gate as the board wires it: a PreToolUse hook inside
 // `ghGateHooks` (a `canUseTool` rule never runs under bypass), the
 // confirmation parked on the chat or the task, and plan mode.
-import { test, before } from 'node:test';
+import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { tempDir } from './teardown.mjs';
 
@@ -11,11 +11,17 @@ process.env.HFSMON_NO_AUTOSTART = '1';
 let pipeline;
 let store;
 let config;
+// The real tool lives inside a Claude session with an open process pipe.
+// The unit-test fake has no such handle; keep the event loop alive while
+// asserting that its unref() approval timeout denies a silent request.
+let fakeSessionKeepalive;
 before(async () => {
+  fakeSessionKeepalive = setInterval(() => {}, 200);
   pipeline = await import('../src/pipeline.js');
   ({ store } = await import('../src/store.js'));
   ({ config } = await import('../src/config.js'));
 });
+after(() => clearInterval(fakeSessionKeepalive));
 
 let n = 9500;
 function freshTask(fields = {}) {
