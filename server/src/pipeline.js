@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { existsSync } from 'node:fs';
 import { config, DATA_DIR } from './config.js';
-import { providerFor, runTaskAgent } from './agents/index.js';
+import { forkSessionForProvider, providerFor, runTaskAgent } from './agents/index.js';
 import { CodexChatSession, CODEX_APPROVAL_METHODS } from './agents/chat-session.js';
 import { store } from './store.js';
 import { settings } from './settings.js';
@@ -3300,7 +3300,13 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
   const { onEvent } = feed;
   const cfg = cfgOf(task);
   const tune = tunedSession(task, 'plan', { cfg });
-  const { model } = tune;
+  const codexPlan = providerFor('plan', null, cfg) === 'codex';
+  const model = codexPlan ? (cfg.agents?.codex?.model || 'Codex (default)') : tune.model;
+  // Preserve the existing mutable Claude test seam. Codex uses the isolated
+  // read-only App Server provider, including every revision and tagged retry.
+  const runPlanning = (options) => providerFor('plan', options.resume, cfg) === 'claude'
+    ? fixHooks.runClaude(options)
+    : runTaskAgent(options, { stage: 'plan', cfg });
   const machine = machineOf(task);
   const startedAt = Date.now();
   const revising = Boolean(feedback);
@@ -3320,6 +3326,9 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
     const common = {
       machine, cwd: task.worktreePath, ...tune, maxTurns: 30, onEvent,
       canUseTool: taskCanUseTool(task, stage), hooks: ghGateHooks(task, stage),
+      planningId: `plan-${task.project}-${task.id ?? task.branch}-${Date.now()}`,
+      taskId: task.id ?? task.branch,
+      projectId: task.project,
     };
 
     let result = null;
@@ -3327,7 +3336,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
       // The session that wrote the plan already read the code and knows why
       // the split was what it was: it redoes the plan instead of starting over.
       store.addLog(task, stage, 'resuming the session that wrote the previous plan');
-      const resumeOnce = () => fixHooks.runClaude({
+      const resumeOnce = () => runPlanning({
         ...common,
         resume,
         prompt: renderPrompt('plan-revise', { ...promptVarsFor(task, stage), feedback, processRule: processRuleFor(machine) }),
@@ -3346,7 +3355,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
       }
     }
     if (!result) {
-      result = await fixHooks.runClaude({
+      result = await runPlanning({
         ...common,
         prompt: renderPrompt('fix-plan', {
           ...promptVarsFor(task, stage),
@@ -3381,7 +3390,7 @@ async function planFix(task, issue, planSection, extraContext, { resume = null, 
     // approve it, so the prose that opens it is part of the deliverable and is
     // asked for in the same retry as the tagged line.
     const { plan, brief, problem } = await readWorkPlanFrom(task, stage, result, {
-      machine, cwd: task.worktreePath, model, tuning: tune, onEvent, run: fixHooks.runClaude,
+      machine, cwd: task.worktreePath, model, tuning: tune, onEvent, run: runPlanning,
       giveUp: revising ? 'not continuing without the plan you asked for' : 'continuing without a plan',
       brief: true,
     });
@@ -3620,7 +3629,9 @@ async function fixPhase(task, issue, extraContext = '', { continuing = false } =
       // `record.text`, and a manifest of file paths is not something anyone
       // can say yes to. Without a brief this is exactly the old text.
       record = newPlanRecord({ id: `fix-${Date.now().toString(36)}`, text: planText(brief, plan), ...plan });
-      record.forkFrom = task.planSessionId ?? null;
+      // A Codex App Server thread is NOT a Claude session. The executor still
+      // uses Claude; it must not attempt to fork a Codex plan transcript.
+      record.forkFrom = forkSessionForProvider(task.planSessionId, 'claude');
       record.version = planning?.version ?? (task.planVersion ?? 0) + 1;
       record.messageId = planning?.messageId ?? null;
       // What was asked for to get this version, for «Cambios que pediste».
@@ -3676,7 +3687,7 @@ async function fixPhase(task, issue, extraContext = '', { continuing = false } =
     cwd: task.worktreePath,
     ...tunedSession(task, 'fix', { cfg }),
     maxTurns: maxTurnsFor('fix', cfg),
-    resume: principalChat(task)?.sessionId ?? undefined,
+    resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
     onEvent: claudeLogger(task, 'fix'),
     canUseTool: taskCanUseTool(task, 'fix'),
     hooks: ghGateHooks(task, 'fix'),
@@ -4560,7 +4571,7 @@ export async function gapsPhase(task, issue) {
       machine,
       cwd: task.worktreePath,
       ...tune,
-      resume: principalChat(task).sessionId,
+      resume: forkSessionForProvider(principalChat(task).sessionId, 'claude') ?? undefined,
       maxTurns: 30,
       onEvent,
       canUseTool: taskCanUseTool(task, 'gaps'),
@@ -5358,7 +5369,7 @@ ${services.map((s) => `- ${s.label}: ${s.localUrl ?? s.url}`).join('\n')}
       machine: machineOf(task),
       cwd: task.worktreePath,
       ...demoTune,
-      resume: principalChat(task)?.sessionId ?? undefined,
+      resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
       maxTurns: 40,
       onEvent,
       hooks: ghGateHooks(task, 'demo'),
@@ -6069,7 +6080,7 @@ function chatPlanHost(task, chat, live) {
   };
 
   return {
-    forkFrom: chat.sessionId,
+    forkFrom: forkSessionForProvider(chat.sessionId, 'claude'),
     maxRetries: config.plan?.maxRetries ?? 3,
     log: (line) => store.addLog(task, 'plan', line),
     onChange,
@@ -8212,7 +8223,7 @@ export async function draftReviewReplies(issue, reviewId) {
         machine: machineOf(task),
         cwd: task.worktreePath,
         ...tunedSession(task, 'reply', { stage: 'cr', cfg }),
-        resume: principalChat(task)?.sessionId ?? undefined,
+        resume: forkSessionForProvider(principalChat(task)?.sessionId, 'claude') ?? undefined,
         maxTurns: 30,
         onEvent: claudeLogger(task, 'cr'),
         hooks: ghGateHooks(task, 'cr'),
@@ -8717,7 +8728,7 @@ export async function draftIssueClosing(issue, { chatId = null } = {}) {
         machine,
         cwd: task.worktreePath,
         ...tunedSession(task, 'reply', { stage: 'close', cfg }),
-        resume: chat.sessionId,
+        resume: forkSessionForProvider(chat.sessionId, 'claude') ?? undefined,
         maxTurns: 30,
         onEvent: claudeLogger(task, 'close'),
         // The structural half of «you draft, a person publishes»: with no Bash

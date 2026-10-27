@@ -179,7 +179,7 @@ test('every session the pipeline starts carries the gate', async () => {
   // Same shapes `maxturns-caps.test.mjs` watches: the direct calls, the
   // injectable `run({` spelling (`readWorkPlanFrom`) and the `nudgedSession`
   // wrapper.
-  const calls = [...src.matchAll(/\b(?:fixHooks\.)?runClaude\(\{|\brun\(\{|\bnudgedSession\(task,\s*'[^']+',\s*\{/g)];
+  const calls = [...src.matchAll(/\b(?:fixHooks\.)?(?:runClaude|runPlanning)\(\{|\brun\(\{|\bnudgedSession\(task,\s*'[^']+',\s*\{/g)];
   // Pinned: a new session site must be added here on purpose, after checking it.
   assert.equal(calls.length, 21, `found ${calls.length} session literals`);
 
