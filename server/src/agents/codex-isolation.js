@@ -14,6 +14,85 @@ function normalizePath(p) {
   return p.replace(/\\/g, '/');
 }
 
+/**
+ * Serializes a string into a TOML basic string literal (enclosed in double quotes),
+ * with all quotes, backslashes, control characters, and DEL properly escaped.
+ */
+export function serializeTomlString(str) {
+  if (typeof str !== 'string') {
+    str = String(str);
+  }
+  return JSON.stringify(str).replace(/\u007f/g, '\\u007f');
+}
+
+/**
+ * Serializes a TOML key: returns bare key if composed solely of [A-Za-z0-9_-],
+ * otherwise returns a safely quoted and escaped TOML basic string.
+ */
+export function serializeTomlKey(key) {
+  if (typeof key !== 'string') {
+    throw new TypeError(`TOML key must be a string, received ${typeof key}`);
+  }
+  if (!key) {
+    throw new Error('TOML key cannot be empty');
+  }
+  if (/^[A-Za-z0-9_-]+$/.test(key)) {
+    return key;
+  }
+  return serializeTomlString(key);
+}
+
+/**
+ * Serializes a dictionary of environment variables into a TOML inline table:
+ * e.g. { DEBUG = "true", PORT = "9999" }
+ *
+ * Validates environment variable keys and values:
+ * - Key must be a non-empty string adhering to POSIX identifier rules
+ *   (letters, digits, underscores, not starting with a digit) without '=', '\0', or newlines.
+ * - Value must be a scalar (string, number, boolean) without null bytes.
+ * - Throws explicit, descriptive errors on any invalid key or value.
+ */
+export function serializeTomlInlineTable(obj) {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) {
+    throw new TypeError('Environment variables must be a plain object');
+  }
+  const entries = Object.entries(obj);
+  if (entries.length === 0) {
+    return '{}';
+  }
+  const pairs = [];
+  for (const [rawKey, rawVal] of entries) {
+    if (typeof rawKey !== 'string' || rawKey.length === 0) {
+      throw new Error('Environment variable key must be a non-empty string');
+    }
+    if (rawKey.includes('\0') || /[\r\n]/.test(rawKey)) {
+      throw new Error(`Invalid environment variable key ${JSON.stringify(rawKey)}: cannot contain newlines or null characters`);
+    }
+    if (rawKey.includes('=')) {
+      throw new Error(`Invalid environment variable key ${JSON.stringify(rawKey)}: cannot contain "="`);
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(rawKey)) {
+      throw new Error(`Invalid environment variable key ${JSON.stringify(rawKey)}: must start with a letter or underscore and contain only alphanumeric characters and underscores`);
+    }
+
+    if (rawVal === null || rawVal === undefined) {
+      throw new TypeError(`Environment variable value for "${rawKey}" cannot be null or undefined`);
+    }
+    if (typeof rawVal === 'object' || typeof rawVal === 'function' || typeof rawVal === 'symbol') {
+      throw new TypeError(`Environment variable value for "${rawKey}" must be a scalar, received ${typeof rawVal}`);
+    }
+    const strVal = String(rawVal);
+    if (strVal.includes('\0')) {
+      throw new Error(`Environment variable value for "${rawKey}" cannot contain null characters`);
+    }
+
+    const tomlKey = serializeTomlKey(rawKey);
+    const tomlVal = serializeTomlString(strVal);
+    pairs.push(`${tomlKey} = ${tomlVal}`);
+  }
+  return `{ ${pairs.join(', ')} }`;
+}
+
 // Active reference tracking per isolated home to ensure cleanup of one session
 // NEVER deletes auth.json or invalidates credentials of another concurrently active session.
 const activeIsolatedHomes = new Map();
@@ -66,9 +145,17 @@ export function auditCodexMcpConfiguration({ cwd = null, userCodexHome = null } 
   if (existsSync(userConfigPath)) {
     try {
       const content = readFileSync(userConfigPath, 'utf8');
-      const matches = content.matchAll(/^\[mcp_servers\.([^\]\s]+)\]/gm);
+      const matches = content.matchAll(/^\[mcp_servers\.(?:"([^"\\]*(?:\\.[^"\\]*)*)"|([A-Za-z0-9_-]+))\]/gm);
       for (const m of matches) {
-        userMcpServers.push(m[1]);
+        let name = m[2];
+        if (m[1] !== undefined) {
+          try {
+            name = JSON.parse(`"${m[1]}"`);
+          } catch {
+            name = m[1];
+          }
+        }
+        if (name) userMcpServers.push(name);
       }
     } catch { /* ignore read errors in audit */ }
   }
@@ -79,9 +166,17 @@ export function auditCodexMcpConfiguration({ cwd = null, userCodexHome = null } 
     if (existsSync(projectConfigPath)) {
       try {
         const content = readFileSync(projectConfigPath, 'utf8');
-        const matches = content.matchAll(/^\[mcp_servers\.([^\]\s]+)\]/gm);
+        const matches = content.matchAll(/^\[mcp_servers\.(?:"([^"\\]*(?:\\.[^"\\]*)*)"|([A-Za-z0-9_-]+))\]/gm);
         for (const m of matches) {
-          projectMcpServers.push(m[1]);
+          let name = m[2];
+          if (m[1] !== undefined) {
+            try {
+              name = JSON.parse(`"${m[1]}"`);
+            } catch {
+              name = m[1];
+            }
+          }
+          if (name) projectMcpServers.push(name);
         }
       } catch { /* ignore read errors in audit */ }
     }
@@ -209,14 +304,25 @@ export function prepareCodexIsolatedHome({
   if (existsSync(targetConfig)) {
     try {
       const prevContent = readFileSync(targetConfig, 'utf8');
-      const projMatches = prevContent.matchAll(/^\[projects\."([^"]+)"\]\s*\ntrust_level\s*=\s*"untrusted"/gm);
+      const projMatches = prevContent.matchAll(/^\[projects\.(?:"([^"\\]*(?:\\.[^"\\]*)*)"|([A-Za-z0-9_-]+))\]\s*\ntrust_level\s*=\s*"untrusted"/gm);
       for (const m of projMatches) {
-        untrustedProjects.add(m[1]);
+        let val = m[2];
+        if (m[1] !== undefined) {
+          try {
+            val = JSON.parse(`"${m[1]}"`);
+          } catch {
+            val = m[1];
+          }
+        }
+        if (val) untrustedProjects.add(val);
       }
     } catch { /* ignore read errors */ }
   }
 
   if (cwd) {
+    if (typeof cwd === 'string' && cwd.includes('\0')) {
+      throw new Error('Project path cannot contain null characters');
+    }
     const normCwd = normalizePath(cwd);
     untrustedProjects.add(normCwd);
     try {
@@ -233,21 +339,56 @@ export function prepareCodexIsolatedHome({
   ];
 
   for (const proj of untrustedProjects) {
-    configLines.push(`[projects."${proj}"]`, 'trust_level = "untrusted"', '');
+    configLines.push(`[projects.${serializeTomlString(proj)}]`, 'trust_level = "untrusted"', '');
   }
 
   // If specific MCP servers are explicitly authorized via policy, configure only them
-  if (mcpPolicy?.allowedMcpServers && typeof mcpPolicy.allowedMcpServers === 'object') {
+  if (mcpPolicy?.allowedMcpServers) {
+    if (typeof mcpPolicy.allowedMcpServers !== 'object' || Array.isArray(mcpPolicy.allowedMcpServers)) {
+      throw new TypeError('allowedMcpServers must be an object');
+    }
     for (const [name, cfg] of Object.entries(mcpPolicy.allowedMcpServers)) {
-      if (!cfg || typeof cfg !== 'object' || !cfg.command) continue;
-      configLines.push(`[mcp_servers.${name}]`);
-      configLines.push(`command = ${JSON.stringify(cfg.command)}`);
-      if (Array.isArray(cfg.args)) {
-        configLines.push(`args = ${JSON.stringify(cfg.args)}`);
+      if (typeof name !== 'string' || !name.trim()) {
+        throw new Error('MCP server name must be a non-empty string');
       }
-      if (cfg.env && typeof cfg.env === 'object') {
-        configLines.push(`env = ${JSON.stringify(cfg.env)}`);
+      if (name.includes('\0') || /[\r\n]/.test(name)) {
+        throw new Error(`Invalid MCP server name ${JSON.stringify(name)}: cannot contain newlines or null characters`);
       }
+      if (!cfg || typeof cfg !== 'object' || Array.isArray(cfg)) {
+        throw new TypeError(`Configuration for MCP server "${name}" must be an object`);
+      }
+      if (typeof cfg.command !== 'string' || !cfg.command.trim()) {
+        throw new Error(`MCP server "${name}" must specify a non-empty string command`);
+      }
+      if (cfg.command.includes('\0') || /[\r\n]/.test(cfg.command)) {
+        throw new Error(`MCP server "${name}" command cannot contain newlines or null characters`);
+      }
+
+      const mcpKey = serializeTomlKey(name);
+      configLines.push(`[mcp_servers.${mcpKey}]`);
+      configLines.push(`command = ${serializeTomlString(cfg.command)}`);
+
+      if (cfg.args !== undefined) {
+        if (!Array.isArray(cfg.args)) {
+          throw new TypeError(`MCP server "${name}" args must be an array`);
+        }
+        const serializedArgs = cfg.args.map((arg, idx) => {
+          if (typeof arg !== 'string' && typeof arg !== 'number' && typeof arg !== 'boolean') {
+            throw new TypeError(`MCP server "${name}" arg at index ${idx} must be a scalar, received ${typeof arg}`);
+          }
+          const str = String(arg);
+          if (str.includes('\0')) {
+            throw new Error(`MCP server "${name}" arg at index ${idx} cannot contain null characters`);
+          }
+          return serializeTomlString(str);
+        });
+        configLines.push(`args = [${serializedArgs.join(', ')}]`);
+      }
+
+      if (cfg.env !== undefined) {
+        configLines.push(`env = ${serializeTomlInlineTable(cfg.env)}`);
+      }
+
       configLines.push('');
     }
   }
