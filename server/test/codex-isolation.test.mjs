@@ -1024,7 +1024,20 @@ test('TOML validation: Rutas de proyecto con caracteres especiales', () => {
   }
 });
 
-test('Prueba con el Codex CLI real y un MCP ficticio local: solamente carga los MCP explícitamente autorizados', () => {
+function hasCodexCli() {
+  try {
+    execFileSync('codex', ['--version'], { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+test('Prueba con el Codex CLI real y un MCP ficticio local: solamente carga los MCP explícitamente autorizados', (t) => {
+  if (!hasCodexCli()) {
+    t.skip('Codex CLI is not installed in this environment');
+    return;
+  }
   const tmp = tempDir('codex-real-cli-mcp-');
   try {
     const repoDir = path.join(tmp, 'repo');
